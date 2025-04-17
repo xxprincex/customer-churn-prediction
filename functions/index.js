@@ -34,7 +34,7 @@ exports.createCheckoutSession = functions.https.onRequest((req, res) => {
 
 exports.handleWebhook = functions.https.onRequest(async (req, res) => {
   const sig = req.headers["stripe-signature"];
-  const endpointSecret = "your_webhook_signing_secret"; // Replace with your webhook signing secret
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   try {
     const event = stripe.webhooks.constructEvent(
