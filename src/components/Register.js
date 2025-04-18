@@ -111,10 +111,6 @@ const Register = () => {
           });
 
           setShowSuccess(true);
-          toast.success("Verification email sent! Please check your email.", {
-            position: "top-center",
-            autoClose: 3000,
-          });
 
           // Sign out the user after registration
           await auth.signOut();

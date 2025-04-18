@@ -83,7 +83,6 @@ const Login = () => {
       if (!user.emailVerified) {
         await signOut(auth);
         setError("Please verify your email to continue");
-        toast.warning("Please verify your email first");
         return;
       }
 
