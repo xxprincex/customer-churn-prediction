@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
   FaUser,
   FaLock,
@@ -17,6 +18,30 @@ import { auth, db } from "./firebase";
 import { setDoc, doc } from "firebase/firestore";
 import { toast } from "react-toastify";
 import { checkValidation } from "../utils/Validate";
+
+const pageVariants = {
+  initial: {
+    opacity: 0,
+    x: 200,
+    scale: 0.95,
+  },
+  in: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+  },
+  out: {
+    opacity: 0,
+    x: -200,
+    scale: 0.95,
+  },
+};
+
+const pageTransition = {
+  type: "tween",
+  ease: "anticipate",
+  duration: 0.5,
+};
 
 const Register = () => {
   const [firstname, setFirstname] = useState("");
@@ -132,28 +157,84 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen pt-48 pb-48 flex justify-center">
+    <div className="min-h-screen pt-48 pb-48 flex justify-center overflow-hidden">
       {showSuccess && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 animate-scaleIn">
-          <div className="bg-white rounded-lg p-8 flex flex-col items-center max-w-md">
-            <FaCheckCircle className="text-green-500 text-6xl mb-4" />
-            <h2 className="text-2xl font-bold mb-2">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+        >
+          <motion.div
+            initial={{ y: -50 }}
+            animate={{ y: 0 }}
+            transition={{ type: "spring", damping: 15 }}
+            className="bg-white rounded-lg p-8 flex flex-col items-center max-w-md"
+          >
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring", damping: 10 }}
+            >
+              <FaCheckCircle className="text-green-500 text-6xl mb-4" />
+            </motion.div>
+            <motion.h2
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-2xl font-bold mb-2"
+            >
               Registration Successful!
-            </h2>
-            <p className="text-gray-600 text-center mb-4">
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+              className="text-gray-600 text-center mb-4"
+            >
               A verification email has been sent to {email}
-            </p>
-            <p className="text-gray-500 text-sm mt-4">
+            </motion.p>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="text-gray-500 text-sm mt-4"
+            >
               Redirecting to login page...
-            </p>
-          </div>
-        </div>
+            </motion.p>
+          </motion.div>
+        </motion.div>
       )}
-      <div className="relative bg-white shadow-2xl rounded-lg p-14 w-160">
-        <h1 className="text-3xl font-sans font-bold text-center">Register</h1>
-        <div className="border-b-4 rounded-full border-black w-20 mx-auto my-2"></div>
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="relative bg-white shadow-2xl rounded-lg p-14 w-160"
+      >
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-3xl font-sans font-bold text-center"
+        >
+          Register
+        </motion.h1>
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: "80px" }}
+          transition={{ delay: 0.3 }}
+          className="border-b-4 rounded-full border-black w-20 mx-auto my-2"
+        />
 
-        <form onSubmit={handleRegister} className="space-y-6 mt-4">
+        <motion.form
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          onSubmit={handleRegister}
+          className="space-y-6 mt-4"
+        >
           <div className="relative flex justify-center ">
             <FaUser className="absolute left-19 top-1/2 transform -translate-y-1/2 text-gray-500" />
             <input
@@ -227,14 +308,19 @@ const Register = () => {
               )}
             </button>
           </div>
-        </form>
-        <p className="text-center mt-4 text-gray-600">
+        </motion.form>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="text-center mt-4 text-gray-600"
+        >
           Already have account? {""}
           <span className="text-blue-600 hover:underline cursor-pointer">
             <Link to="/Login">Login</Link>
           </span>
-        </p>
-      </div>
+        </motion.p>
+      </motion.div>
     </div>
   );
 };

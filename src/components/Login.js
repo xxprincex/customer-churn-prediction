@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import {
   FaLock,
   FaEnvelope,
@@ -14,6 +15,30 @@ import {
 } from "firebase/auth";
 import { auth } from "./firebase";
 import { toast } from "react-toastify";
+
+const pageVariants = {
+  initial: {
+    opacity: 0,
+    x: -200,
+    scale: 0.95,
+  },
+  in: {
+    opacity: 1,
+    x: 0,
+    scale: 1,
+  },
+  out: {
+    opacity: 0,
+    x: 200,
+    scale: 0.95,
+  },
+};
+
+const pageTransition = {
+  type: "tween",
+  ease: "anticipate",
+  duration: 0.5,
+};
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -93,12 +118,37 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen pt-48 pb-64 flex justify-center">
-      <div className="relative bg-white shadow-2xl rounded-lg p-14 w-160">
-        <h1 className="text-3xl font-sans font-bold text-center">Login</h1>
-        <div className="border-b-4 rounded-full border-black w-20 mx-auto my-2"></div>
+    <div className="min-h-screen pt-48 pb-64 flex justify-center overflow-hidden">
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="relative bg-white shadow-2xl rounded-lg p-14 w-160"
+      >
+        <motion.h1
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="text-3xl font-sans font-bold text-center"
+        >
+          Login
+        </motion.h1>
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: "80px" }}
+          transition={{ delay: 0.3 }}
+          className="border-b-4 rounded-full border-black w-20 mx-auto my-2"
+        />
 
-        <form onSubmit={handleSignIn} className="space-y-6 mt-4">
+        <motion.form
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          onSubmit={handleSignIn}
+          className="space-y-6 mt-4"
+        >
           <div className="relative flex justify-center">
             <FaEnvelope className="absolute left-19 top-1/2 transform -translate-y-1/2 text-gray-500" />
             <input
@@ -153,9 +203,14 @@ const Login = () => {
               )}
             </button>
           </div>
-        </form>
+        </motion.form>
 
-        <div className="text-center mt-4 space-y-2">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="text-center mt-4 space-y-2"
+        >
           <p className="text-gray-600">
             Don't have an account?{" "}
             <Link to="/Register" className="text-blue-600 hover:underline">
@@ -177,8 +232,8 @@ const Login = () => {
               "Forgot password?"
             )}
           </button>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };
