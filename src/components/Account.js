@@ -11,7 +11,12 @@ import {
   updateDoc,
   writeBatch,
 } from "firebase/firestore";
-import { signOut } from "firebase/auth";
+import {
+  signOut,
+  deleteUser,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+} from "firebase/auth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -223,6 +228,24 @@ const Profile = () => {
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [password, setPassword] = useState("");
+  const [reAuthError, setReAuthError] = useState("");
+
+  // Add useEffect for handling body scroll
+  useEffect(() => {
+    if (showDeleteConfirm) {
+      // Prevent scrolling on the body when modal is open
+      document.body.style.overflow = "hidden";
+    } else {
+      // Re-enable scrolling when modal is closed
+      document.body.style.overflow = "unset";
+    }
+
+    // Cleanup function to re-enable scrolling when component unmounts
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showDeleteConfirm]);
 
   const filteredPredictions = predictions.filter((pred) => {
     const matchesCustomerId = pred.formData?.CustomerID?.toLowerCase().includes(
@@ -652,13 +675,40 @@ const Profile = () => {
 
   const handleDeleteAccount = async () => {
     try {
+      setIsProcessing(true);
+      setReAuthError("");
       const user = auth.currentUser;
+
+      if (!user) {
+        toast.error("No user found to delete");
+        return;
+      }
+
+      if (!password.trim()) {
+        setReAuthError("Please enter your password to confirm deletion");
+        toast.error("Please enter your password to confirm deletion");
+        setIsProcessing(false);
+        return;
+      }
+
+      try {
+        // Try to re-authenticate user before deletion
+        const credential = EmailAuthProvider.credential(user.email, password);
+        await reauthenticateWithCredential(user, credential);
+      } catch (reAuthError) {
+        console.error("Re-authentication failed:", reAuthError);
+        setReAuthError("Incorrect password. Please try again.");
+        toast.error("Incorrect password. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // Create a batch for Firestore operations
+      const batch = writeBatch(db);
 
       // Delete user's predictions
       const predictionsRef = collection(db, "Users", user.uid, "predictions");
       const predictionsSnapshot = await getDocs(predictionsRef);
-      const batch = writeBatch(db);
-
       predictionsSnapshot.docs.forEach((doc) => {
         batch.delete(doc.ref);
       });
@@ -670,18 +720,40 @@ const Profile = () => {
       // Commit the batch
       await batch.commit();
 
-      // Delete the user account
-      await user.delete();
+      // Delete the user authentication account
+      await deleteUser(user);
 
-      // Sign out and redirect
-      await signOut(auth);
-      navigate("/login");
       toast.success("Account deleted successfully");
+      navigate("/"); // Navigate to home page instead of login
     } catch (error) {
       console.error("Error deleting account:", error);
-      toast.error("Failed to delete account. Please try again.");
+      if (error.code === "auth/requires-recent-login") {
+        setReAuthError("Please re-enter your password to confirm deletion");
+        toast.error("Please re-enter your password to confirm deletion");
+      } else if (error.code === "auth/wrong-password") {
+        setReAuthError("Incorrect password. Please try again.");
+        toast.error("Incorrect password. Please try again.");
+      } else {
+        const errorMessage =
+          error.message || "Failed to delete account. Please try again.";
+        toast.error(errorMessage);
+        setReAuthError(errorMessage);
+      }
+    } finally {
+      setIsProcessing(false);
+      if (!reAuthError) {
+        setShowDeleteConfirm(false);
+      }
     }
   };
+
+  // Add cleanup for password state when modal closes
+  useEffect(() => {
+    if (!showDeleteConfirm) {
+      setPassword("");
+      setReAuthError("");
+    }
+  }, [showDeleteConfirm]);
 
   // Add the hasGoldAccess function before the return statement
   const hasGoldAccess = () => {
@@ -971,7 +1043,7 @@ const Profile = () => {
                                   fill="currentColor"
                                   viewBox="0 0 20 20"
                                 >
-                                  <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
+                                  <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z" />
                                 </svg>
                               </div>
                               <div>
@@ -1125,7 +1197,7 @@ const Profile = () => {
                                   >
                                     <path
                                       fillRule="evenodd"
-                                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v4a1 1 0 002 0V6a1 1 0 00-1-1z"
                                       clipRule="evenodd"
                                     />
                                   </svg>
@@ -1487,6 +1559,115 @@ const Profile = () => {
           </div>
         )}
       </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          {/* Backdrop with blur */}
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+
+          {/* Modal */}
+          <div className="relative bg-white/90 backdrop-blur-md rounded-2xl p-8 max-w-md w-full mx-4 shadow-xl border border-white/20 transform transition-all">
+            <div className="relative z-10">
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                Delete Account
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete your account? This action cannot
+                be undone and will permanently delete all your data.
+              </p>
+
+              {/* Password confirmation input */}
+              <div className="mb-6">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Enter your password to confirm deletion
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setReAuthError(""); // Clear error when user types
+                  }}
+                  className={`w-full px-4 py-2 rounded-lg border ${
+                    reAuthError
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-300 focus:ring-red-500"
+                  } focus:outline-none focus:ring-2 focus:border-transparent`}
+                  placeholder="Enter your password"
+                />
+                {reAuthError && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center">
+                    <svg
+                      className="w-4 h-4 mr-1"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    {reAuthError}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl py-2.5 px-4 font-medium transition-all duration-200 backdrop-blur-sm border border-gray-200"
+                  disabled={isProcessing}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={!password.trim() || isProcessing}
+                  className={`flex-1 rounded-xl py-2.5 px-4 font-medium transition-all duration-200 backdrop-blur-sm border flex items-center justify-center
+                    ${
+                      !password.trim() || isProcessing
+                        ? "bg-red-300/90 cursor-not-allowed border-red-200/20 text-white"
+                        : "bg-red-500/90 hover:bg-red-600/90 border-red-400/20 text-white"
+                    }`}
+                >
+                  {isProcessing ? (
+                    <>
+                      <svg
+                        className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete Account"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
