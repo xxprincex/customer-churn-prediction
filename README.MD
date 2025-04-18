@@ -55,8 +55,7 @@ REACT_APP_FIREBASE_APP_ID=your_app_id_here
 ## Project Structure
 
 ```
-├── public/
-│   └── index.html
+
 ├── src/
 │   ├── components/
 │   │   ├── CsvResults.js
@@ -65,7 +64,9 @@ REACT_APP_FIREBASE_APP_ID=your_app_id_here
 │   ├── App.js
 │   └── index.js
 ├── .env
-└── package.json
+├── package.json
+└── index.html
+
 ```
 
 ## Dependencies
