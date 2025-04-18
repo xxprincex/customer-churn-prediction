@@ -535,7 +535,6 @@ const CsvResults = ({ results, fileName }) => {
           </div>
         </div>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-700 mb-2">
@@ -567,7 +566,6 @@ const CsvResults = ({ results, fileName }) => {
           </p>
         </div>
       </div>
-
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-700 mb-4">
           Risk Distribution
@@ -626,7 +624,6 @@ const CsvResults = ({ results, fileName }) => {
           </div>
         </div>
       </div>
-
       {/* Detailed Action Plan */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center">
@@ -872,6 +869,208 @@ const CsvResults = ({ results, fileName }) => {
                 </ul>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+      {/* Enhanced Business Impact Analysis Section */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+          <svg
+            className="w-5 h-5 mr-2 text-yellow-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          Business Impact Analysis
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-yellow-50 rounded-lg p-4">
+            <h4 className="font-semibold text-yellow-800 mb-2">
+              Revenue at Risk
+            </h4>
+            <div className="space-y-2">
+              <p className="text-sm text-yellow-600">
+                <span className="font-bold text-lg block">
+                  {churnCount} Customers
+                </span>
+                At risk of churning
+              </p>
+              <p className="text-sm text-yellow-600">
+                <span className="font-bold text-lg block">
+                  {Math.round(churnCount * 0.6)}
+                </span>
+                Potentially recoverable
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-emerald-50 rounded-lg p-4">
+            <h4 className="font-semibold text-emerald-800 mb-2">
+              Retention Priority
+            </h4>
+            <div className="space-y-2">
+              <p className="text-sm text-emerald-600">
+                <span className="font-bold text-lg block">
+                  {mediumRiskCustomers.length} Customers
+                </span>
+                Medium risk - Highest ROI opportunity
+              </p>
+              <p className="text-sm text-emerald-600">
+                <span className="font-bold text-lg block">
+                  {((mediumRiskCustomers.length / totalRecords) * 100).toFixed(
+                    1
+                  )}
+                  %
+                </span>
+                Of total customer base
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-800 mb-2">
+              Loyalty Potential
+            </h4>
+            <div className="space-y-2">
+              <p className="text-sm text-blue-600">
+                <span className="font-bold text-lg block">
+                  {lowRiskCustomers.length} Customers
+                </span>
+                Loyal customers for referrals
+              </p>
+              <p className="text-sm text-blue-600">
+                <span className="font-bold text-lg block">
+                  {((lowRiskCustomers.length / totalRecords) * 100).toFixed(1)}%
+                </span>
+                Potential brand ambassadors
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-800 mb-3">
+              Strategic Recommendations
+            </h4>
+            <ul className="space-y-2 text-sm text-gray-600">
+              <li className="flex items-start">
+                <svg
+                  className="w-5 h-5 text-green-500 mr-2 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Implement personalized retention offers for high-risk segment
+              </li>
+              <li className="flex items-start">
+                <svg
+                  className="w-5 h-5 text-green-500 mr-2 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Launch targeted loyalty program for medium-risk customers
+              </li>
+              <li className="flex items-start">
+                <svg
+                  className="w-5 h-5 text-green-500 mr-2 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Develop referral program leveraging loyal customer base
+              </li>
+            </ul>
+          </div>
+
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-800 mb-3">
+              Expected Outcomes
+            </h4>
+            <ul className="space-y-2 text-sm text-gray-600">
+              <li className="flex items-start">
+                <svg
+                  className="w-5 h-5 text-blue-500 mr-2 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                  />
+                </svg>
+                Potential to recover {Math.round(churnCount * 0.6)} customers
+                through immediate action
+              </li>
+              <li className="flex items-start">
+                <svg
+                  className="w-5 h-5 text-blue-500 mr-2 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                  />
+                </svg>
+                Improve retention rate by up to{" "}
+                {((mediumRiskCustomers.length / totalRecords) * 100).toFixed(1)}
+                % through medium-risk engagement
+              </li>
+              <li className="flex items-start">
+                <svg
+                  className="w-5 h-5 text-blue-500 mr-2 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                  />
+                </svg>
+                Generate new leads through{" "}
+                {Math.round(lowRiskCustomers.length * 0.2)} potential referrals
+              </li>
+            </ul>
           </div>
         </div>
       </div>
