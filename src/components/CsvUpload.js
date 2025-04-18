@@ -423,6 +423,7 @@ const CsvUpload = () => {
       });
 
       const csvData = parseResult.data;
+      console.log("Raw CSV data first row:", csvData[0]); // Debug log
 
       // Process data in batches of 1000
       const BATCH_SIZE = 1000;
@@ -439,12 +440,16 @@ const CsvUpload = () => {
         // Prepare batch data
         const batchData = {
           data: batch.map((row) => {
-            // Convert numeric fields to numbers
-            const record = {};
-            Object.keys(row).forEach((key) => {
-              if (key === "CustomerID") return; // Skip CustomerID for data
-              // Convert numeric fields to numbers
-              if (
+            // Create a clean copy of the row data
+            const cleanData = {};
+            const formData = { ...row }; // Keep all original data
+
+            // Process each field
+            Object.entries(row).forEach(([key, value]) => {
+              // Process for the prediction
+              if (key === "CustomerID") {
+                cleanData.customerID = value;
+              } else if (
                 [
                   "Tenure",
                   "CityTier",
@@ -461,12 +466,28 @@ const CsvUpload = () => {
                   "CashbackAmount",
                 ].includes(key)
               ) {
-                record[key] = parseFloat(row[key]) || 0;
+                const numValue = parseFloat(value) || 0;
+                cleanData[key] = numValue;
+                formData[key] = numValue;
               } else {
-                record[key] = row[key];
+                cleanData[key] = value;
               }
             });
-            return record;
+
+            const processedRow = {
+              ...cleanData,
+              formData: formData,
+            };
+
+            // Debug log for first row
+            if (start === 0) {
+              console.log("Processed row:", {
+                original: row,
+                processed: processedRow,
+              });
+            }
+
+            return processedRow;
           }),
           customerIds: batch.map(
             (row) =>
@@ -494,7 +515,24 @@ const CsvUpload = () => {
             throw new Error(batchResults.error);
           }
 
-          allResults = [...allResults, ...batchResults.predictions];
+          // Log first prediction result
+          if (i === 0) {
+            console.log(
+              "First prediction result:",
+              batchResults.predictions[0]
+            );
+          }
+
+          allResults = [
+            ...allResults,
+            ...batchResults.predictions.map((pred) => ({
+              ...pred,
+              formData: batchData.data.find(
+                (d) => d.customerID === pred.customerID
+              )?.formData,
+            })),
+          ];
+
           if (batchResults.errors) {
             allErrors = [...allErrors, ...batchResults.errors];
           }
@@ -511,6 +549,9 @@ const CsvUpload = () => {
           throw error;
         }
       }
+
+      // Log final results sample
+      console.log("Final results sample:", allResults.slice(0, 3));
 
       // Set final results
       setResults({

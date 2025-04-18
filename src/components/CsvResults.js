@@ -1401,9 +1401,11 @@ const CsvResults = ({ results, fileName }) => {
         </h3>
         <div className="grid grid-cols-5 gap-4">
           {[1, 2, 3, 4, 5].map((score) => {
-            const count = predictions.filter(
-              (p) => parseInt(p.formData?.SatisfactionScore) === score
-            ).length;
+            const count = predictions.filter((p) => {
+              const satisfactionScore = parseInt(p.formData?.SatisfactionScore);
+              return satisfactionScore === score;
+            }).length;
+
             const percentage = (count / totalRecords) * 100;
             const colorClass =
               score <= 2
@@ -1418,7 +1420,7 @@ const CsvResults = ({ results, fileName }) => {
                 <div className="h-40 flex items-end justify-center">
                   <div
                     className={`w-12 bg-gradient-to-t ${colorClass} rounded-t-lg transition-all duration-500`}
-                    style={{ height: `${percentage * 2}px` }}
+                    style={{ height: `${Math.max(percentage * 2, 2)}px` }}
                   />
                 </div>
                 <div className="mt-2 text-sm text-gray-600">
@@ -1430,6 +1432,28 @@ const CsvResults = ({ results, fileName }) => {
               </div>
             );
           })}
+        </div>
+        {/* Debug information */}
+        <div className="mt-4 text-sm text-gray-500">
+          <div>Total Records: {totalRecords}</div>
+          <div>Sample Data:</div>
+          <div className="bg-gray-100 p-2 rounded mt-1 space-y-2">
+            <div>First 3 Predictions:</div>
+            {predictions.slice(0, 3).map((p, i) => (
+              <div key={i} className="ml-2">
+                <div>Customer {p.customerID}:</div>
+                <div className="ml-4">
+                  - Raw Score: {p.formData?.SatisfactionScore}
+                </div>
+                <div className="ml-4">
+                  - Parsed Score: {parseInt(p.formData?.SatisfactionScore)}
+                </div>
+                <div className="ml-4">
+                  - Form Data: {JSON.stringify(p.formData || {})}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
