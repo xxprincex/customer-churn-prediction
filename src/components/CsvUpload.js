@@ -660,16 +660,7 @@ const CsvUpload = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-              <FaFileUpload className="mr-2" />
-              CSV Upload
-            </h2>
-          </div>
-        </div>
-      </div>
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm"></div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="bg-white shadow-xl rounded-lg overflow-hidden">
@@ -706,7 +697,7 @@ const CsvUpload = () => {
                 </div>
                 <button
                   onClick={handleDownloadTemplate}
-                  className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <FaFileDownload className="mr-2" />
                   Download Template
@@ -811,7 +802,7 @@ const CsvUpload = () => {
               <div className="flex justify-end">
                 <button
                   type="button"
-                  className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white ${
+                  className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white ${
                     !file || isUploading
                       ? "bg-gray-400 cursor-not-allowed"
                       : "bg-[#1d5a7b] hover:bg-[#164e68] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1d5a7b]"
