@@ -188,7 +188,7 @@ const Prediction = () => {
     if (numericFields.includes(name)) {
       // Allow empty string (for backspace/delete) or numbers only
       if (value !== "" && !/^\d*\.?\d*$/.test(value)) {
-        toast.error("I knew it, numbers only maam! 🙂", {
+        toast.error("Enter numbers only ! 🙂", {
           position: "top-right",
           autoClose: 2000,
           hideProgressBar: false,
@@ -447,6 +447,7 @@ const Prediction = () => {
                   value={formData.CustomerID}
                   onChange={handleChange}
                   placeholder="Customer ID (Optional)"
+                  autoComplete="off"
                   className={`w-full px-4 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#2687b4] ${
                     formErrors.CustomerID ? "border-red-500" : "border-gray-300"
                   }`}
@@ -551,10 +552,11 @@ const Prediction = () => {
                     placeholder=" "
                     value={formData[field.id]}
                     onChange={handleChange}
+                    autoComplete="off"
                     onKeyPress={(e) => {
                       if (!/[0-9.]/.test(e.key)) {
                         e.preventDefault();
-                        toast.error("I knew it, numbers only maam! 🙂", {
+                        toast.error("Enter numbers only ! 🙂", {
                           position: "top-right",
                           autoClose: 2000,
                           hideProgressBar: false,
@@ -622,6 +624,7 @@ const Prediction = () => {
                     name="PreferredLoginDevice"
                     value={formData.PreferredLoginDevice}
                     onChange={handleChange}
+                    autoComplete="off"
                     className={`peer block w-full appearance-none border-b-2 bg-transparent px-3 pt-5 pb-2 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-0 focus:border-[#2687b4] ${
                       formErrors.PreferredLoginDevice
                         ? "border-red-500"
@@ -671,6 +674,7 @@ const Prediction = () => {
                     name="CityTier"
                     value={formData.CityTier}
                     onChange={handleChange}
+                    autoComplete="off"
                     className={`peer block w-full appearance-none border-b-2 bg-transparent px-3 pt-5 pb-2 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-0 focus:border-[#2687b4] ${
                       formErrors.CityTier ? "border-red-500" : "border-gray-400"
                     }`}
@@ -718,6 +722,7 @@ const Prediction = () => {
                     name="PreferredPaymentMode"
                     value={formData.PreferredPaymentMode}
                     onChange={handleChange}
+                    autoComplete="off"
                     className={`peer block w-full appearance-none border-b-2 bg-transparent px-3 pt-5 pb-2 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-0 focus:border-[#2687b4] ${
                       formErrors.PreferredPaymentMode
                         ? "border-red-500"
@@ -769,6 +774,7 @@ const Prediction = () => {
                     name="Gender"
                     value={formData.Gender}
                     onChange={handleChange}
+                    autoComplete="off"
                     className={`peer block w-full appearance-none border-b-2 bg-transparent px-3 pt-5 pb-2 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-0 focus:border-[#2687b4] ${
                       formErrors.Gender ? "border-red-500" : "border-gray-400"
                     }`}
@@ -815,6 +821,7 @@ const Prediction = () => {
                     name="PreferedOrderCat"
                     value={formData.PreferedOrderCat}
                     onChange={handleChange}
+                    autoComplete="off"
                     className={`peer block w-full appearance-none border-b-2 bg-transparent px-3 pt-5 pb-2 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-0 focus:border-[#2687b4] ${
                       formErrors.PreferedOrderCat
                         ? "border-red-500"
@@ -868,6 +875,7 @@ const Prediction = () => {
                     name="MaritalStatus"
                     value={formData.MaritalStatus}
                     onChange={handleChange}
+                    autoComplete="off"
                     className={`peer block w-full appearance-none border-b-2 bg-transparent px-3 pt-5 pb-2 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-0 focus:border-[#2687b4] ${
                       formErrors.MaritalStatus
                         ? "border-red-500"
@@ -917,6 +925,7 @@ const Prediction = () => {
                     name="Complain"
                     value={formData.Complain}
                     onChange={handleChange}
+                    autoComplete="off"
                     className={`peer block w-full appearance-none border-b-2 bg-transparent px-3 pt-5 pb-2 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-0 focus:border-[#2687b4] ${
                       formErrors.Complain ? "border-red-500" : "border-gray-400"
                     }`}
