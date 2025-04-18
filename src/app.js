@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "../style.css";
 import Header from "./components/Header";
 import Body from "./components/Body";
 import Aboutp from "./components/Aboutp";
@@ -15,11 +16,13 @@ import {
   Navigate,
 } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { useEffect, useState } from "react";
 import { auth } from "./components/firebase";
 import Account from "./components/Account";
 import PredictionDetail from "./components/PredictionDetail";
 import CsvUpload from "./components/CsvUpload";
+import { AnimatePresence } from "framer-motion";
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -34,7 +37,11 @@ const AuthProvider = ({ children }) => {
   }, []);
 
   if (loading) {
-    return <p className="text-xl flex justify-center mt-95">loading....</p>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+      </div>
+    );
   }
   return children(user);
 };
@@ -57,7 +64,9 @@ const AppLayout = ({ user }) => {
   return (
     <div className="app">
       <Header user={user} />
-      <Outlet />
+      <AnimatePresence mode="wait">
+        <Outlet />
+      </AnimatePresence>
       <ToastContainer />
     </div>
   );
@@ -136,7 +145,9 @@ const appRouter = (user) =>
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-  <AuthProvider>
-    {(user) => <RouterProvider router={appRouter(user)} />}
-  </AuthProvider>
+  <React.StrictMode>
+    <AuthProvider>
+      {(user) => <RouterProvider router={appRouter(user)} />}
+    </AuthProvider>
+  </React.StrictMode>
 );
