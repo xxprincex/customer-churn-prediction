@@ -322,26 +322,102 @@ const Prediction = () => {
       }
 
       // Step 6: Process and format prediction results
+      const adjustRiskBasedOnFactors = (originalProbability, formData) => {
+        let riskScore = 0;
+        let riskFactors = [];
+
+        // Critical Risk Factors
+        if (formData.Complain === "1") {
+          riskScore += 0.15;
+          riskFactors.push("Active Complaints");
+        }
+
+        // Tenure Risk
+        if (parseInt(formData.Tenure) <= 6) {
+          riskScore += 0.1;
+          riskFactors.push("New Customer (≤6 months)");
+        }
+
+        // Inactivity Risk
+        if (parseInt(formData.DaySinceLastOrder) > 30) {
+          riskScore += 0.12;
+          riskFactors.push("Inactive >30 Days");
+        }
+
+        // Low Satisfaction Risk
+        if (parseInt(formData.SatisfactionScore) <= 2) {
+          riskScore += 0.15;
+          riskFactors.push("Low Satisfaction");
+        }
+
+        // Low Order Count Risk
+        if (parseInt(formData.OrderCount) <= 2) {
+          riskScore += 0.08;
+          riskFactors.push("Low Order Count");
+        }
+
+        // Declining Value Risk
+        if (parseFloat(formData.OrderAmountHikeFromlastYear) < 0) {
+          riskScore += 0.1;
+          riskFactors.push("Declining Order Value");
+        }
+
+        // Single Device Risk (less platform commitment)
+        if (parseInt(formData.NumberOfDeviceRegistered) === 1) {
+          riskScore += 0.05;
+          riskFactors.push("Single Device Usage");
+        }
+
+        // Adjust the original probability
+        let adjustedProb = Math.min(originalProbability + riskScore, 0.95);
+
+        // If multiple critical factors are present, ensure minimum risk level
+        if (riskFactors.length >= 3) {
+          adjustedProb = Math.max(adjustedProb, 0.4);
+        }
+
+        return {
+          adjustedProbability: adjustedProb,
+          riskFactors: riskFactors,
+        };
+      };
+
+      const { adjustedProbability, riskFactors } = adjustRiskBasedOnFactors(
+        result.churn_probability,
+        processedData
+      );
+
       const formattedPrediction = {
-        prediction: result.prediction,
-        churn_probability: result.churn_probability,
-        stay_probability: result.stay_probability,
-        prediction_label: result.prediction_label,
-        risk_factors: result.risk_factors || [],
+        prediction: adjustedProbability > 0.3 ? 1 : 0,
+        churn_probability: adjustedProbability,
+        stay_probability: 1 - adjustedProbability,
+        prediction_label:
+          adjustedProbability > 0.3 ? "Likely to Churn" : "Likely to Stay",
+        risk_factors: riskFactors,
         confidence_score: Math.round(
-          (result.churn_probability > 0.5
-            ? result.churn_probability
-            : result.stay_probability) * 100
+          (adjustedProbability > 0.5
+            ? adjustedProbability
+            : 1 - adjustedProbability) * 100
         ),
       };
 
       setPrediction(formattedPrediction);
 
-      // Show appropriate toast message based on prediction
+      // Show appropriate toast message based on adjusted prediction
       if (formattedPrediction.prediction === 1) {
-        toast.warning("⚠️ High risk of churn detected! Check action plan.");
+        if (adjustedProbability > 0.7) {
+          toast.error(
+            "⚠️ High risk of churn detected! Immediate action required."
+          );
+        } else {
+          toast.warning("⚠️ Moderate churn risk detected. Check action plan.");
+        }
       } else {
-        toast.success("✅ Low churn risk predicted.");
+        if (riskFactors.length > 0) {
+          toast.info("✅ Low churn risk, but some risk factors present.");
+        } else {
+          toast.success("✅ Low churn risk predicted.");
+        }
       }
 
       // Step 7: Save prediction to Firestore
