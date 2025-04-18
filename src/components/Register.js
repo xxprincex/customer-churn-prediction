@@ -159,51 +159,55 @@ const Register = () => {
   return (
     <div className="min-h-screen pt-48 pb-48 flex justify-center overflow-hidden">
       {showSuccess && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
-        >
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          {/* Backdrop with blur */}
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+
+          {/* Modal */}
           <motion.div
             initial={{ y: -50 }}
             animate={{ y: 0 }}
             transition={{ type: "spring", damping: 15 }}
-            className="bg-white rounded-lg p-8 flex flex-col items-center max-w-md"
+            className="relative bg-white/90 backdrop-blur-md rounded-2xl p-8 max-w-md w-full mx-4 shadow-xl border border-white/20 transform transition-all"
           >
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring", damping: 10 }}
-            >
-              <FaCheckCircle className="text-green-500 text-6xl mb-4" />
-            </motion.div>
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-2xl font-bold mb-2"
-            >
-              Registration Successful!
-            </motion.h2>
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="text-gray-600 text-center mb-4"
-            >
-              A verification email has been sent to {email}
-            </motion.p>
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="text-gray-500 text-sm mt-4"
-            >
-              Redirecting to login page...
-            </motion.p>
+            <div className="relative z-10">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", damping: 10 }}
+                className="flex justify-center"
+              >
+                <FaCheckCircle className="text-green-500 text-6xl mb-4" />
+              </motion.div>
+              <motion.h2
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-2xl font-bold mb-2 text-center"
+              >
+                Registration Successful!
+              </motion.h2>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-gray-600 text-center mb-4"
+              >
+                A verification email has been sent to
+                <br />
+                <span className="font-medium">{email}</span>
+              </motion.p>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-gray-500 text-sm text-center mt-4"
+              >
+                Redirecting to login page...
+              </motion.p>
+            </div>
           </motion.div>
-        </motion.div>
+        </div>
       )}
       <motion.div
         initial="initial"
