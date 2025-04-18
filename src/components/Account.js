@@ -1492,6 +1492,9 @@ const Profile = () => {
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <span className="text-sm font-semibold text-gray-900">
                                   {(pred.churn_probability * 100).toFixed(1)}%
+                                  churn |{" "}
+                                  {(pred.stay_probability * 100).toFixed(1)}%
+                                  stay
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">

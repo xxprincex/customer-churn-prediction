@@ -58,12 +58,14 @@ const PredictionDetail = () => {
             date: data.timestamp
               ? new Date(data.timestamp.toDate()).toLocaleString()
               : "Unknown date",
-            stay_probability: data.churn_probability
-              ? 1 - data.churn_probability
-              : 0,
+            stay_probability:
+              data.stay_probability ||
+              (data.churn_probability ? 1 - data.churn_probability : 0),
             confidence_score:
               data.confidence_score ||
-              Math.round((1 - Math.abs(0.5 - data.churn_probability)) * 100),
+              Math.round(
+                (data.stay_probability || 1 - data.churn_probability) * 100
+              ),
           });
         } else {
           setError("Prediction not found");
