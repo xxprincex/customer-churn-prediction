@@ -659,19 +659,20 @@ const CsvUpload = () => {
   }
 
   return (
-    <div className="min-h-screen">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white shadow-xl rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-[#1d5a7b] to-[#2d7ba4] text-white">
-            <h2 className="text-2xl font-bold flex items-center">
+    <div className="min-h-screen bg-gray-50">
+      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-800 flex items-center">
               <FaFileUpload className="mr-2" />
               CSV Upload
             </h2>
-            <p className="mt-1 text-white/80 text-sm">
-              Upload a CSV file with customer data for batch prediction
-            </p>
           </div>
+        </div>
+      </div>
 
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="bg-white shadow-xl rounded-lg overflow-hidden">
           {!results ? (
             <div className="p-6">
               <div className="mb-8 p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
