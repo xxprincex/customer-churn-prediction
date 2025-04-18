@@ -931,301 +931,311 @@ const Profile = () => {
   };
 
   return (
-    <div className="font-serif pt-32 bg-gradient-to-br from-gray-50 via-white to-gray-100 min-h-screen">
-      {isActivating ? (
-        <div className="flex flex-col items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b] mb-4"></div>
-          <p className="text-gray-600">Setting up your plan...</p>
-        </div>
-      ) : userDetails ? (
-        <>
-          <div
-            className={`relative shadow-2xl w-[95%] max-w-5xl mx-auto mb-8 ${
-              hasGoldAccess() ? "premium-gold-card" : "glass-card"
-            }`}
-          >
-            <div className="flex flex-col md:flex-row h-full">
-              {/* Left side - User info */}
-              <div className="p-10 md:p-14 md:w-3/5 relative z-10">
-                <div className="mb-6 flex justify-between items-center">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-1">
-                      Account
-                    </h3>
-                    <div className="h-1 w-12 bg-[#1d5a7b] rounded"></div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+      <div className="w-full pt-[140px] md:pt-[160px] pb-12 px-4">
+        {isActivating ? (
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b] mb-4"></div>
+            <p className="text-gray-600">Setting up your plan...</p>
+          </div>
+        ) : userDetails ? (
+          <>
+            <div className="max-w-7xl mx-auto">
+              <div
+                className={`relative shadow-2xl w-[95%] max-w-5xl mx-auto mb-8 ${hasGoldAccess() ? "premium-gold-card" : "glass-card"}`}
+              >
+                <div className="flex flex-col md:flex-row h-full">
+                  {/* Left side - User info */}
+                  <div className="p-10 md:p-14 md:w-3/5 relative z-10">
+                    <div className="mb-6 flex justify-between items-center">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-1">
+                          Account
+                        </h3>
+                        <div className="h-1 w-12 bg-[#1d5a7b] rounded"></div>
+                      </div>
+                      {hasGoldAccess() && (
+                        <div className="gold-member-badge text-white text-sm font-bold flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-yellow-600 py-1 px-4 rounded-full shadow-md">
+                          <svg
+                            className="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                          {userDetails.subscriptionStatus === "trial"
+                            ? "TRIAL ACTIVE"
+                            : "GOLD MEMBER"}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mb-8">
+                      <h1 className="text-5xl font-bold mb-1 bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                        {userDetails.firstName}
+                      </h1>
+                      <h2 className="text-4xl font-bold bg-gradient-to-r from-gray-600 to-gray-400 bg-clip-text text-transparent mb-4">
+                        {userDetails.lastName}
+                      </h2>
+                      <p className="text-gray-600 text-lg">
+                        Customer at Churn Prediction Service.
+                        <br />
+                        Currently using our AI prediction tools.
+                      </p>
+                    </div>
+
+                    <div className="mb-8 space-y-4">
+                      <div className="flex items-center gap-4">
+                        <span className="text-gray-500 w-24">First name:</span>
+                        <span className="font-medium">
+                          {userDetails.firstName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-gray-500 w-24">Last name:</span>
+                        <span className="font-medium">
+                          {userDetails.lastName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-gray-500 w-24">Email:</span>
+                        <span className="font-medium">{userDetails.email}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-4">
+                      <button
+                        onClick={handleLogout}
+                        className="bg-red-500 text-white rounded-full font-medium hover:scale-105 duration-300 py-3 px-8 hover:bg-red-600 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                          />
+                        </svg>
+                        Logout
+                      </button>
+                      <button
+                        onClick={togglePredictionHistory}
+                        className="bg-[#1d5a7b] text-white rounded-full font-medium hover:scale-105 duration-300 py-3 px-8 hover:bg-[#164e68] transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
+                        </svg>
+                        {showPredictions
+                          ? "Hide Predictions"
+                          : "View Past Predictions"}
+                      </button>
+                    </div>
                   </div>
-                  {hasGoldAccess() && (
-                    <div className="gold-member-badge text-white text-sm font-bold flex items-center gap-2 bg-gradient-to-r from-yellow-400 to-yellow-600 py-1 px-4 rounded-full shadow-md">
+
+                  {/* Right side - Plan section */}
+                  <div className="md:w-2/5 p-8 flex flex-col justify-center items-stretch relative z-10 h-full">
+                    {(!subscriptionPlan || subscriptionPlan === "Free") &&
+                      renderFreeUserPromotion()}
+                    {subscriptionPlan === "Gold" &&
+                      userDetails.subscriptionStatus === "trial" &&
+                      renderTrialContent()}
+                    {subscriptionPlan === "Gold" &&
+                      userDetails.subscriptionStatus === "active" &&
+                      renderPremiumContent()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Prediction History Section */}
+              {showPredictions && (
+                <div
+                  className={`mt-8 w-full max-w-4xl mx-auto ${hasGoldAccess() ? "premium-gold-card" : "glass-card"} p-6 transform transition-all duration-300 hover:shadow-2xl`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold mb-1">
+                        Prediction History
+                      </h3>
+                      <div className="h-0.5 w-20 bg-[#1d5a7b] rounded"></div>
+                    </div>
+                  </div>
+
+                  {/* Search and Filter Section */}
+                  <div className="mb-6 flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        placeholder="Search by Customer ID..."
+                        value={searchCustomerId}
+                        onChange={(e) => setSearchCustomerId(e.target.value)}
+                        className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1d5a7b] focus:border-transparent text-sm"
+                      />
+                    </div>
+                    <div className="flex flex-1 gap-2">
+                      <input
+                        type="date"
+                        value={dateRange.startDate}
+                        onChange={(e) =>
+                          setDateRange((prev) => ({
+                            ...prev,
+                            startDate: e.target.value,
+                          }))
+                        }
+                        className="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1d5a7b] focus:border-transparent text-sm"
+                      />
+                      <span className="flex items-center text-gray-500">
+                        to
+                      </span>
+                      <input
+                        type="date"
+                        value={dateRange.endDate}
+                        onChange={(e) =>
+                          setDateRange((prev) => ({
+                            ...prev,
+                            endDate: e.target.value,
+                          }))
+                        }
+                        className="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1d5a7b] focus:border-transparent text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {loading ? (
+                    <div className="flex justify-center items-center p-6">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+                    </div>
+                  ) : predictions.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full prediction-table text-sm">
+                        <thead>
+                          <tr>
+                            <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                              Customer ID
+                            </th>
+                            <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                              Prediction
+                            </th>
+                            <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                              Churn Probability
+                            </th>
+                            <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">
+                              Details
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-gray-700">
+                          {filteredPredictions.map((pred) => (
+                            <tr
+                              key={pred.id}
+                              className="hover:bg-white/5 transition-colors duration-200"
+                            >
+                              <td className="px-4 py-2">{pred.date}</td>
+                              <td className="px-4 py-2">
+                                {pred.formData?.CustomerID || "N/A"}
+                              </td>
+                              <td className="px-4 py-2">
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    pred.prediction === 1
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-green-100 text-green-800"
+                                  }`}
+                                >
+                                  {pred.prediction === 1
+                                    ? "Likely to Churn"
+                                    : "Likely to Stay"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2">
+                                {(pred.churn_probability * 100).toFixed(1)}%
+                              </td>
+                              <td className="px-4 py-2">
+                                <button
+                                  onClick={() =>
+                                    navigate(`/prediction-detail/${pred.id}`)
+                                  }
+                                  className="text-[#1d5a7b] hover:text-[#164e68] text-xs font-medium flex items-center gap-1 hover:underline"
+                                >
+                                  <svg
+                                    className="w-3.5 h-3.5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                    />
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                    />
+                                  </svg>
+                                  View Details
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 bg-gray-50 rounded-xl">
                       <svg
-                        className="w-4 h-4"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
+                        className="w-12 h-12 text-gray-400 mx-auto mb-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
                         <path
-                          fillRule="evenodd"
-                          d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
-                          clipRule="evenodd"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                         />
                       </svg>
-                      {userDetails.subscriptionStatus === "trial"
-                        ? "TRIAL ACTIVE"
-                        : "GOLD MEMBER"}
+                      <p className="text-gray-500 text-sm">
+                        No prediction history found. Make some predictions to
+                        see them here!
+                      </p>
                     </div>
                   )}
                 </div>
-
-                <div className="mb-8">
-                  <h1 className="text-5xl font-bold mb-1 bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
-                    {userDetails.firstName}
-                  </h1>
-                  <h2 className="text-4xl font-bold bg-gradient-to-r from-gray-600 to-gray-400 bg-clip-text text-transparent mb-4">
-                    {userDetails.lastName}
-                  </h2>
-                  <p className="text-gray-600 text-lg">
-                    Customer at Churn Prediction Service.
-                    <br />
-                    Currently using our AI prediction tools.
-                  </p>
-                </div>
-
-                <div className="mb-8 space-y-4">
-                  <div className="flex items-center gap-4">
-                    <span className="text-gray-500 w-24">First name:</span>
-                    <span className="font-medium">{userDetails.firstName}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-gray-500 w-24">Last name:</span>
-                    <span className="font-medium">{userDetails.lastName}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-gray-500 w-24">Email:</span>
-                    <span className="font-medium">{userDetails.email}</span>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-4">
-                  <button
-                    onClick={handleLogout}
-                    className="bg-red-500 text-white rounded-full font-medium hover:scale-105 duration-300 py-3 px-8 hover:bg-red-600 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                    Logout
-                  </button>
-                  <button
-                    onClick={togglePredictionHistory}
-                    className="bg-[#1d5a7b] text-white rounded-full font-medium hover:scale-105 duration-300 py-3 px-8 hover:bg-[#164e68] transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                      />
-                    </svg>
-                    {showPredictions
-                      ? "Hide Predictions"
-                      : "View Past Predictions"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Right side - Plan section */}
-              <div className="md:w-2/5 p-8 flex flex-col justify-center items-stretch relative z-10 h-full">
-                {(!subscriptionPlan || subscriptionPlan === "Free") &&
-                  renderFreeUserPromotion()}
-                {subscriptionPlan === "Gold" &&
-                  userDetails.subscriptionStatus === "trial" &&
-                  renderTrialContent()}
-                {subscriptionPlan === "Gold" &&
-                  userDetails.subscriptionStatus === "active" &&
-                  renderPremiumContent()}
-              </div>
-            </div>
-          </div>
-
-          {/* Prediction History Section */}
-          {showPredictions && (
-            <div
-              className={`mt-8 w-full max-w-4xl mx-auto ${hasGoldAccess() ? "premium-gold-card" : "glass-card"} p-6 transform transition-all duration-300 hover:shadow-2xl`}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-xl font-bold mb-1">Prediction History</h3>
-                  <div className="h-0.5 w-20 bg-[#1d5a7b] rounded"></div>
-                </div>
-              </div>
-
-              {/* Search and Filter Section */}
-              <div className="mb-6 flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Search by Customer ID..."
-                    value={searchCustomerId}
-                    onChange={(e) => setSearchCustomerId(e.target.value)}
-                    className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1d5a7b] focus:border-transparent text-sm"
-                  />
-                </div>
-                <div className="flex flex-1 gap-2">
-                  <input
-                    type="date"
-                    value={dateRange.startDate}
-                    onChange={(e) =>
-                      setDateRange((prev) => ({
-                        ...prev,
-                        startDate: e.target.value,
-                      }))
-                    }
-                    className="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1d5a7b] focus:border-transparent text-sm"
-                  />
-                  <span className="flex items-center text-gray-500">to</span>
-                  <input
-                    type="date"
-                    value={dateRange.endDate}
-                    onChange={(e) =>
-                      setDateRange((prev) => ({
-                        ...prev,
-                        endDate: e.target.value,
-                      }))
-                    }
-                    className="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#1d5a7b] focus:border-transparent text-sm"
-                  />
-                </div>
-              </div>
-
-              {loading ? (
-                <div className="flex justify-center items-center p-6">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1d5a7b]"></div>
-                </div>
-              ) : predictions.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full prediction-table text-sm">
-                    <thead>
-                      <tr>
-                        <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">
-                          Date
-                        </th>
-                        <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">
-                          Customer ID
-                        </th>
-                        <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">
-                          Prediction
-                        </th>
-                        <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">
-                          Churn Probability
-                        </th>
-                        <th className="text-left px-4 py-2 text-xs font-semibold uppercase tracking-wider">
-                          Details
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-gray-700">
-                      {filteredPredictions.map((pred) => (
-                        <tr
-                          key={pred.id}
-                          className="hover:bg-white/5 transition-colors duration-200"
-                        >
-                          <td className="px-4 py-2">{pred.date}</td>
-                          <td className="px-4 py-2">
-                            {pred.formData?.CustomerID || "N/A"}
-                          </td>
-                          <td className="px-4 py-2">
-                            <span
-                              className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                pred.prediction === 1
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-green-100 text-green-800"
-                              }`}
-                            >
-                              {pred.prediction === 1
-                                ? "Likely to Churn"
-                                : "Likely to Stay"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2">
-                            {(pred.churn_probability * 100).toFixed(1)}%
-                          </td>
-                          <td className="px-4 py-2">
-                            <button
-                              onClick={() =>
-                                navigate(`/prediction-detail/${pred.id}`)
-                              }
-                              className="text-[#1d5a7b] hover:text-[#164e68] text-xs font-medium flex items-center gap-1 hover:underline"
-                            >
-                              <svg
-                                className="w-3.5 h-3.5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                />
-                              </svg>
-                              View Details
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-6 bg-gray-50 rounded-xl">
-                  <svg
-                    className="w-12 h-12 text-gray-400 mx-auto mb-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                    />
-                  </svg>
-                  <p className="text-gray-500 text-sm">
-                    No prediction history found. Make some predictions to see
-                    them here!
-                  </p>
-                </div>
               )}
             </div>
-          )}
-        </>
-      ) : (
-        <div className="flex justify-center items-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
-        </div>
-      )}
+          </>
+        ) : (
+          <div className="flex justify-center items-center h-screen">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
