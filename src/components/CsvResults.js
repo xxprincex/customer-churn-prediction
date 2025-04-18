@@ -1433,28 +1433,6 @@ const CsvResults = ({ results, fileName }) => {
             );
           })}
         </div>
-        {/* Debug information */}
-        <div className="mt-4 text-sm text-gray-500">
-          <div>Total Records: {totalRecords}</div>
-          <div>Sample Data:</div>
-          <div className="bg-gray-100 p-2 rounded mt-1 space-y-2">
-            <div>First 3 Predictions:</div>
-            {predictions.slice(0, 3).map((p, i) => (
-              <div key={i} className="ml-2">
-                <div>Customer {p.customerID}:</div>
-                <div className="ml-4">
-                  - Raw Score: {p.formData?.SatisfactionScore}
-                </div>
-                <div className="ml-4">
-                  - Parsed Score: {parseInt(p.formData?.SatisfactionScore)}
-                </div>
-                <div className="ml-4">
-                  - Form Data: {JSON.stringify(p.formData || {})}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Monthly Churn Trend */}

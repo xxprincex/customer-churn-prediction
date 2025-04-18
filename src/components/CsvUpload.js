@@ -423,7 +423,6 @@ const CsvUpload = () => {
       });
 
       const csvData = parseResult.data;
-      console.log("Raw CSV data first row:", csvData[0]); // Debug log
 
       // Process data in batches of 1000
       const BATCH_SIZE = 1000;
@@ -479,14 +478,6 @@ const CsvUpload = () => {
               formData: formData,
             };
 
-            // Debug log for first row
-            if (start === 0) {
-              console.log("Processed row:", {
-                original: row,
-                processed: processedRow,
-              });
-            }
-
             return processedRow;
           }),
           customerIds: batch.map(
@@ -515,14 +506,6 @@ const CsvUpload = () => {
             throw new Error(batchResults.error);
           }
 
-          // Log first prediction result
-          if (i === 0) {
-            console.log(
-              "First prediction result:",
-              batchResults.predictions[0]
-            );
-          }
-
           allResults = [
             ...allResults,
             ...batchResults.predictions.map((pred) => ({
@@ -549,9 +532,6 @@ const CsvUpload = () => {
           throw error;
         }
       }
-
-      // Log final results sample
-      console.log("Final results sample:", allResults.slice(0, 3));
 
       // Set final results
       setResults({
