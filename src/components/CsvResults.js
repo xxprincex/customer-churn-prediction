@@ -1477,6 +1477,248 @@ const CsvResults = ({ results, fileName }) => {
           </div>
         </div>
       </div>
+
+      {/* Order Frequency Distribution */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+          Order Frequency Distribution
+        </h3>
+        <div className="space-y-4">
+          {(() => {
+            const orderGroups = {
+              "0-2 orders": 0,
+              "3-5 orders": 0,
+              "6-10 orders": 0,
+              "11-15 orders": 0,
+              "16+ orders": 0,
+            };
+
+            predictions.forEach((p) => {
+              const orderCount = parseInt(p.formData?.OrderCount) || 0;
+              if (orderCount <= 2) orderGroups["0-2 orders"]++;
+              else if (orderCount <= 5) orderGroups["3-5 orders"]++;
+              else if (orderCount <= 10) orderGroups["6-10 orders"]++;
+              else if (orderCount <= 15) orderGroups["11-15 orders"]++;
+              else orderGroups["16+ orders"]++;
+            });
+
+            return Object.entries(orderGroups).map(([range, count]) => {
+              const percentage = (count / totalRecords) * 100;
+              return (
+                <div key={range} className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">{range}</span>
+                    <span className="text-gray-500">
+                      {count} customers ({percentage.toFixed(1)}%)
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2.5">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-purple-500 to-purple-400"
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+      </div>
+
+      {/* Customer Engagement Metrics */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+          Customer Engagement Metrics
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* App Usage Distribution */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-4">
+              Daily App Usage
+            </h4>
+            <div className="space-y-4">
+              {(() => {
+                const usageGroups = {
+                  "< 1 hour": 0,
+                  "1-2 hours": 0,
+                  "2-3 hours": 0,
+                  "3-4 hours": 0,
+                  "4+ hours": 0,
+                };
+
+                predictions.forEach((p) => {
+                  const hours = parseFloat(p.formData?.HourSpendOnApp) || 0;
+                  if (hours < 1) usageGroups["< 1 hour"]++;
+                  else if (hours < 2) usageGroups["1-2 hours"]++;
+                  else if (hours < 3) usageGroups["2-3 hours"]++;
+                  else if (hours < 4) usageGroups["3-4 hours"]++;
+                  else usageGroups["4+ hours"]++;
+                });
+
+                return Object.entries(usageGroups).map(([range, count]) => {
+                  const percentage = (count / totalRecords) * 100;
+                  return (
+                    <div key={range} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">{range}</span>
+                        <span className="text-gray-500">
+                          {percentage.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-2">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-400"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+
+          {/* Device Registration */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-4">
+              Registered Devices
+            </h4>
+            <div className="space-y-4">
+              {(() => {
+                const deviceCounts = {};
+                predictions.forEach((p) => {
+                  const devices =
+                    parseInt(p.formData?.NumberOfDeviceRegistered) || 0;
+                  deviceCounts[devices] = (deviceCounts[devices] || 0) + 1;
+                });
+
+                return Object.entries(deviceCounts)
+                  .sort(([a], [b]) => parseInt(a) - parseInt(b))
+                  .map(([devices, count]) => {
+                    const percentage = (count / totalRecords) * 100;
+                    return (
+                      <div key={devices} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">
+                            {devices}{" "}
+                            {parseInt(devices) === 1 ? "device" : "devices"}
+                          </span>
+                          <span className="text-gray-500">
+                            {percentage.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-2">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  });
+              })()}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Payment Method Distribution */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+          Payment Method Distribution
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {(() => {
+            const paymentMethods = {};
+            predictions.forEach((p) => {
+              const method = p.formData?.PreferredPaymentMode || "Other";
+              paymentMethods[method] = (paymentMethods[method] || 0) + 1;
+            });
+
+            const colors = [
+              "from-emerald-500 to-emerald-400",
+              "from-blue-500 to-blue-400",
+              "from-purple-500 to-purple-400",
+              "from-pink-500 to-pink-400",
+              "from-yellow-500 to-yellow-400",
+            ];
+
+            return Object.entries(paymentMethods).map(
+              ([method, count], index) => {
+                const percentage = (count / totalRecords) * 100;
+                return (
+                  <div
+                    key={method}
+                    className="text-center p-4 bg-gray-50 rounded-lg"
+                  >
+                    <div className="h-24 flex items-end justify-center mb-2">
+                      <div
+                        className={`w-16 bg-gradient-to-t ${colors[index % colors.length]} rounded-t-lg transition-all duration-500`}
+                        style={{ height: `${Math.max(percentage * 1.5, 10)}%` }}
+                      />
+                    </div>
+                    <div className="text-sm font-medium text-gray-700">
+                      {method}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {percentage.toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {count} customers
+                    </div>
+                  </div>
+                );
+              }
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* Device Usage Analysis */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+          Device Usage Analysis
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {(() => {
+            const deviceUsage = {};
+            predictions.forEach((p) => {
+              const device = p.formData?.PreferredLoginDevice || "Other";
+              deviceUsage[device] = (deviceUsage[device] || 0) + 1;
+            });
+
+            const colors = {
+              "Mobile Phone": "from-sky-500 to-sky-400",
+              Computer: "from-emerald-500 to-emerald-400",
+              Tablet: "from-violet-500 to-violet-400",
+              Other: "from-gray-500 to-gray-400",
+            };
+
+            return Object.entries(deviceUsage).map(([device, count]) => {
+              const percentage = (count / totalRecords) * 100;
+              return (
+                <div key={device} className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      {device}
+                    </span>
+                    <span className="text-sm text-gray-500">
+                      {percentage.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                    <div
+                      className={`h-full rounded-full bg-gradient-to-r ${colors[device] || colors["Other"]}`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-gray-500">{count} users</div>
+                </div>
+              );
+            });
+          })()}
+        </div>
+      </div>
     </div>
   );
 
