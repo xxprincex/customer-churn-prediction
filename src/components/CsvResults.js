@@ -1719,6 +1719,311 @@ const CsvResults = ({ results, fileName }) => {
           })()}
         </div>
       </div>
+
+      {/* Customer Activity Trends (Line Graph) */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+          Customer Activity Trends
+        </h3>
+        <div className="h-80 relative">
+          {(() => {
+            // Group customers by tenure and calculate average metrics
+            const tenureGroups = {};
+            predictions.forEach((p) => {
+              const tenure = parseInt(p.formData?.Tenure) || 0;
+              if (!tenureGroups[tenure]) {
+                tenureGroups[tenure] = {
+                  count: 0,
+                  totalOrders: 0,
+                  totalSpending: 0,
+                  totalAppHours: 0,
+                };
+              }
+              tenureGroups[tenure].count++;
+              tenureGroups[tenure].totalOrders +=
+                parseInt(p.formData?.OrderCount) || 0;
+              tenureGroups[tenure].totalSpending +=
+                parseFloat(p.formData?.OrderAmountHikeFromlastYear) || 0;
+              tenureGroups[tenure].totalAppHours +=
+                parseFloat(p.formData?.HourSpendOnApp) || 0;
+            });
+
+            // Convert to arrays for plotting
+            const tenures = Object.keys(tenureGroups).sort(
+              (a, b) => parseInt(a) - parseInt(b)
+            );
+            const maxTenure = Math.max(...tenures.map((t) => parseInt(t)));
+            const avgOrders = tenures.map(
+              (t) => tenureGroups[t].totalOrders / tenureGroups[t].count
+            );
+            const avgSpending = tenures.map(
+              (t) => tenureGroups[t].totalSpending / tenureGroups[t].count
+            );
+            const avgAppHours = tenures.map(
+              (t) => tenureGroups[t].totalAppHours / tenureGroups[t].count
+            );
+
+            // Calculate max values for scaling
+            const maxOrders = Math.max(...avgOrders);
+            const maxSpending = Math.max(...avgSpending);
+            const maxAppHours = Math.max(...avgAppHours);
+
+            return (
+              <>
+                {/* Grid lines */}
+                <div className="absolute inset-0 grid grid-cols-12 gap-0">
+                  {Array.from({ length: 13 }).map((_, i) => (
+                    <div key={i} className="border-l border-gray-100 h-full" />
+                  ))}
+                </div>
+                <div className="absolute inset-0 grid grid-rows-8 gap-0">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <div key={i} className="border-t border-gray-100 w-full" />
+                  ))}
+                </div>
+
+                {/* Lines */}
+                <svg
+                  className="w-full h-full"
+                  viewBox="0 0 1200 800"
+                  preserveAspectRatio="none"
+                >
+                  {/* Orders Line */}
+                  <path
+                    d={tenures
+                      .map((t, i) => {
+                        const x = (parseInt(t) / maxTenure) * 1200;
+                        const y = 800 - (avgOrders[i] / maxOrders) * 700;
+                        return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+                      })
+                      .join(" ")}
+                    stroke="#EF4444"
+                    strokeWidth="2"
+                    fill="none"
+                  />
+
+                  {/* Spending Line */}
+                  <path
+                    d={tenures
+                      .map((t, i) => {
+                        const x = (parseInt(t) / maxTenure) * 1200;
+                        const y = 800 - (avgSpending[i] / maxSpending) * 700;
+                        return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+                      })
+                      .join(" ")}
+                    stroke="#10B981"
+                    strokeWidth="2"
+                    fill="none"
+                  />
+
+                  {/* App Hours Line */}
+                  <path
+                    d={tenures
+                      .map((t, i) => {
+                        const x = (parseInt(t) / maxTenure) * 1200;
+                        const y = 800 - (avgAppHours[i] / maxAppHours) * 700;
+                        return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+                      })
+                      .join(" ")}
+                    stroke="#6366F1"
+                    strokeWidth="2"
+                    fill="none"
+                  />
+                </svg>
+
+                {/* Legend */}
+                <div className="absolute bottom-0 right-0 bg-white/80 p-2 rounded-lg flex gap-4">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-red-500 rounded-full mr-2" />
+                    <span className="text-xs text-gray-600">Orders</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2" />
+                    <span className="text-xs text-gray-600">Spending</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 bg-indigo-500 rounded-full mr-2" />
+                    <span className="text-xs text-gray-600">App Usage</span>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* Customer Behavior Heatmap */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+          Customer Behavior Heatmap
+        </h3>
+        <div className="overflow-x-auto">
+          <div className="min-w-[800px]">
+            {(() => {
+              // Define metrics and segments
+              const metrics = [
+                "OrderCount",
+                "HourSpendOnApp",
+                "CouponUsed",
+                "CashbackAmount",
+              ];
+              const segments = ["Low Risk", "Medium Risk", "High Risk"];
+
+              // Calculate averages for each segment and metric
+              const heatmapData = segments.map((segment) => {
+                const customers =
+                  segment === "High Risk"
+                    ? highRiskCustomers
+                    : segment === "Medium Risk"
+                      ? mediumRiskCustomers
+                      : lowRiskCustomers;
+
+                return metrics.map((metric) => {
+                  const values = customers.map(
+                    (c) => parseFloat(c.formData?.[metric]) || 0
+                  );
+                  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                  return avg;
+                });
+              });
+
+              // Find max value for each metric for normalization
+              const maxValues = metrics.map((_, i) =>
+                Math.max(...heatmapData.map((row) => row[i]))
+              );
+
+              return (
+                <div className="grid grid-cols-[200px,1fr] gap-4">
+                  <div className="space-y-4">
+                    {segments.map((segment, i) => (
+                      <div key={segment} className="h-16 flex items-center">
+                        <span className="text-sm font-medium text-gray-700">
+                          {segment}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-4 gap-4">
+                    {metrics.map((metric, j) => (
+                      <div key={metric} className="space-y-4">
+                        <div className="h-8 flex items-center justify-center">
+                          <span className="text-sm font-medium text-gray-700">
+                            {metric.replace(/([A-Z])/g, " $1").trim()}
+                          </span>
+                        </div>
+                        {segments.map((_, i) => {
+                          const value = heatmapData[i][j];
+                          const intensity = (value / maxValues[j]) * 100;
+                          return (
+                            <div
+                              key={`${i}-${j}`}
+                              className="h-16 rounded-lg flex items-center justify-center"
+                              style={{
+                                background: `linear-gradient(to right, rgba(99, 102, 241, ${intensity / 100}), rgba(99, 102, 241, ${intensity / 100}))`,
+                              }}
+                            >
+                              <span className="text-sm font-medium text-gray-700">
+                                {value.toFixed(1)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      </div>
+
+      {/* Correlation Scatter Plot */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+          Order Value vs. App Engagement
+        </h3>
+        <div className="h-80 relative">
+          {(() => {
+            // Extract data points
+            const dataPoints = predictions.map((p) => ({
+              x: parseFloat(p.formData?.HourSpendOnApp) || 0,
+              y: parseFloat(p.formData?.OrderAmountHikeFromlastYear) || 0,
+              risk:
+                p.churnProbability > 0.7
+                  ? "high"
+                  : p.churnProbability > 0.3
+                    ? "medium"
+                    : "low",
+            }));
+
+            // Calculate bounds
+            const maxX = Math.max(...dataPoints.map((p) => p.x));
+            const maxY = Math.max(...dataPoints.map((p) => p.y));
+
+            return (
+              <>
+                {/* Grid lines */}
+                <div className="absolute inset-0 grid grid-cols-10 gap-0">
+                  {Array.from({ length: 11 }).map((_, i) => (
+                    <div key={i} className="border-l border-gray-100 h-full" />
+                  ))}
+                </div>
+                <div className="absolute inset-0 grid grid-rows-8 gap-0">
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <div key={i} className="border-t border-gray-100 w-full" />
+                  ))}
+                </div>
+
+                {/* Scatter Plot */}
+                <svg className="w-full h-full" viewBox="0 0 1000 800">
+                  {dataPoints.map((point, i) => (
+                    <circle
+                      key={i}
+                      cx={(point.x / maxX) * 950}
+                      cy={800 - (point.y / maxY) * 750}
+                      r="4"
+                      className={
+                        point.risk === "high"
+                          ? "fill-red-500 opacity-60"
+                          : point.risk === "medium"
+                            ? "fill-yellow-500 opacity-60"
+                            : "fill-green-500 opacity-60"
+                      }
+                    />
+                  ))}
+                </svg>
+
+                {/* Axes Labels */}
+                <div className="absolute bottom-0 left-0 w-full text-center text-sm text-gray-600">
+                  Hours Spent on App
+                </div>
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-90 text-sm text-gray-600">
+                  Order Value Change (%)
+                </div>
+
+                {/* Legend */}
+                <div className="absolute top-0 right-0 bg-white/80 p-2 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-red-500 opacity-60 rounded-full mr-2" />
+                      <span className="text-xs text-gray-600">High Risk</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-yellow-500 opacity-60 rounded-full mr-2" />
+                      <span className="text-xs text-gray-600">Medium Risk</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-green-500 opacity-60 rounded-full mr-2" />
+                      <span className="text-xs text-gray-600">Low Risk</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      </div>
     </div>
   );
 
