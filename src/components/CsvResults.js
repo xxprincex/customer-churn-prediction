@@ -1353,6 +1353,128 @@ const CsvResults = ({ results, fileName }) => {
             })}
         </div>
       </div>
+
+      {/* Customer Tenure Distribution */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+          Customer Tenure Distribution
+        </h3>
+        <div className="space-y-4">
+          {Object.entries(
+            predictions.reduce((acc, pred) => {
+              const tenure = parseInt(pred.formData?.Tenure) || 0;
+              const range = Math.floor(tenure / 6) * 6; // Group by 6-month intervals
+              const key = `${range}-${range + 5} months`;
+              acc[key] = (acc[key] || 0) + 1;
+              return acc;
+            }, {})
+          )
+            .sort(([a], [b]) => {
+              const aStart = parseInt(a.split("-")[0]);
+              const bStart = parseInt(b.split("-")[0]);
+              return aStart - bStart;
+            })
+            .map(([range, count]) => {
+              const percentage = (count / totalRecords) * 100;
+              return (
+                <div key={range} className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">{range}</span>
+                    <span className="text-gray-500">{count} customers</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2.5">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400"
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+      </div>
+
+      {/* Satisfaction Score Distribution */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+          Satisfaction Score Distribution
+        </h3>
+        <div className="grid grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map((score) => {
+            const count = predictions.filter(
+              (p) => parseInt(p.formData?.SatisfactionScore) === score
+            ).length;
+            const percentage = (count / totalRecords) * 100;
+            const colorClass =
+              score <= 2
+                ? "from-red-500 to-red-400"
+                : score === 3
+                  ? "from-yellow-500 to-yellow-400"
+                  : "from-green-500 to-green-400";
+
+            return (
+              <div key={score} className="text-center">
+                <div className="text-2xl font-bold mb-1">{score}</div>
+                <div className="h-40 flex items-end justify-center">
+                  <div
+                    className={`w-12 bg-gradient-to-t ${colorClass} rounded-t-lg transition-all duration-500`}
+                    style={{ height: `${percentage * 2}px` }}
+                  />
+                </div>
+                <div className="mt-2 text-sm text-gray-600">
+                  {count} customers
+                </div>
+                <div className="text-xs text-gray-500">
+                  {percentage.toFixed(1)}%
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Monthly Churn Trend */}
+      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+          Monthly Churn Trend
+        </h3>
+        <div className="h-64 flex items-end space-x-2">
+          {Array.from({ length: 12 }, (_, i) => {
+            const month = new Date();
+            month.setMonth(month.getMonth() - i);
+            const monthName = month.toLocaleString("default", {
+              month: "short",
+            });
+            const year = month.getFullYear();
+
+            // Simulate monthly churn data (in a real app, this would come from your data)
+            const churnCount = Math.floor(Math.random() * 50) + 10;
+            const totalCustomers = Math.floor(Math.random() * 200) + 100;
+            const churnRate = (churnCount / totalCustomers) * 100;
+
+            return (
+              <div key={`${monthName}-${year}`} className="flex-1">
+                <div className="h-48 flex items-end">
+                  <div
+                    className="w-full bg-gradient-to-t from-red-500 to-red-400 rounded-t-lg transition-all duration-500"
+                    style={{ height: `${churnRate * 2}px` }}
+                  />
+                </div>
+                <div className="text-center mt-2">
+                  <div className="text-xs text-gray-600">{monthName}</div>
+                  <div className="text-xs text-gray-500">{year}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-4 flex justify-center space-x-4">
+          <div className="flex items-center">
+            <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+            <span className="text-sm text-gray-600">Churn Rate</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 
