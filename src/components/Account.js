@@ -9,6 +9,7 @@ import {
   query,
   orderBy,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { signOut } from "firebase/auth";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -213,6 +214,15 @@ const Profile = () => {
   const [isActivating, setIsActivating] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Add these state variables after other useState declarations
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedInfo, setEditedInfo] = useState({
+    firstName: "",
+    lastName: "",
+  });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const filteredPredictions = predictions.filter((pred) => {
     const matchesCustomerId = pred.formData?.CustomerID?.toLowerCase().includes(
@@ -548,6 +558,8 @@ const Profile = () => {
     } catch (error) {
       console.error("Error fetching user data:", error);
       navigate("/login");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -605,341 +617,73 @@ const Profile = () => {
   const contentCardClasses =
     "bg-white/90 rounded-lg p-6 shadow-md transform hover:scale-[1.02] transition-all duration-300 mb-6";
 
-  // Update the Free User Promotion render function
-  const renderFreeUserPromotion = () => (
-    <div className="free-card rounded-[2rem] p-8 space-y-8">
-      <div className="text-center space-y-6">
-        <div className="floating">
-          <div className="inline-block bg-yellow-100 rounded-full p-4">
-            <svg
-              className="w-12 h-12 text-yellow-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 100-16 9 9 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-              />
-            </svg>
-          </div>
-        </div>
-
-        <div>
-          <h3 className="text-2xl font-bold text-gray-800 mb-2">
-            Upgrade to Gold Plan
-          </h3>
-          <div className="bg-gradient-to-r from-yellow-400/20 to-amber-400/20 rounded-xl p-3 mb-4">
-            <p className="text-yellow-800 font-semibold">
-              Special Launch Offer!
-            </p>
-            <p className="text-yellow-700 text-sm">
-              Try Premium Features Free for 1 Week
-            </p>
-          </div>
-        </div>
-
-        <div className="price-tag">
-          <span className="text-4xl font-bold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">
-            ₹999
-          </span>
-          <span className="text-gray-600 text-sm ml-2">/month</span>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <FeatureCard
-          icon={
-            <svg
-              className="w-4 h-4 text-yellow-600"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" />
-            </svg>
-          }
-          title="Unlimited Predictions"
-          description="No restrictions on predictions"
-        />
-        <FeatureCard
-          icon={
-            <svg
-              className="w-4 h-4 text-yellow-600"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 13H11V9.413l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13H5.5z" />
-            </svg>
-          }
-          title="Batch Processing"
-          description="Process multiple files at once"
-        />
-        <FeatureCard
-          icon={
-            <svg
-              className="w-4 h-4 text-yellow-600"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-2 0c0 .993-.241 1.929-.668 2.754l-1.524-1.525a3.997 3.997 0 00.078-2.183l1.562-1.562C15.802 8.249 16 9.1 16 10zm-5.165 3.913l1.58 1.58A5.98 5.98 0 0110 16a5.976 5.976 0 01-2.516-.552l1.562-1.562a4.006 4.006 0 001.789.027zm-4.677-2.796a4.002 4.002 0 01-.041-2.08l-.08.08-1.53-1.533A5.98 5.98 0 004 10c0 .954.223 1.856.619 2.657l1.54-1.54zm1.088-6.45A5.974 5.974 0 0110 4c.954 0 1.856.223 2.657.619l-1.54 1.54a4.002 4.002 0 00-2.346.033L7.246 4.668zM12 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          }
-          title="Priority Support"
-          description="24/7 premium customer support"
-        />
-      </div>
-
-      <div className="space-y-3">
-        <button
-          onClick={handleUpgrade}
-          className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
-        >
-          <svg
-            className="w-5 h-5 animate-pulse"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M13 10V3L4 14h7v7l9-11h-7z"
-            />
-          </svg>
-          Start 1-Week Free Trial
-        </button>
-        <p className="text-center text-sm text-gray-500">
-          No credit card required • Cancel anytime
-        </p>
-      </div>
-    </div>
-  );
-
-  // Update the Trial Content render function
-  const renderTrialContent = () => {
-    const trialEnd = userDetails.trialEndDate?.toDate();
-    const trialStart = userDetails.trialStartDate?.toDate();
-    const now = new Date();
-    const daysLeft = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24));
-    const isExpiringSoon = daysLeft <= 2;
-
-    return (
-      <div className="trial-card rounded-[2rem] p-8 text-white space-y-8">
-        <div className="trial-card-shine" />
-
-        <div className="text-center space-y-6">
-          <div className="inline-flex items-center px-4 py-2 bg-white/20 rounded-full font-semibold backdrop-blur-sm">
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
-                clipRule="evenodd"
-              />
-            </svg>
-            TRIAL ACTIVE
-          </div>
-
-          <div className="space-y-2">
-            <h3 className="text-3xl font-bold">Trial Period</h3>
-            <p className="text-blue-100">Experience premium features</p>
-          </div>
-
-          <div className="flex justify-center">
-            <CountdownRing days={daysLeft} />
-          </div>
-
-          <div className="bg-white/10 rounded-xl p-6 backdrop-blur-sm">
-            <div className="space-y-4">
-              <div>
-                <p className="text-blue-100">Started:</p>
-                <p className="text-xl font-semibold">
-                  {trialStart?.toLocaleDateString("en-IN")}
-                </p>
-              </div>
-              <div>
-                <p className="text-blue-100">Ends:</p>
-                <p className="text-xl font-semibold">
-                  {trialEnd?.toLocaleDateString("en-IN")}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {isExpiringSoon && (
-            <div className="bg-red-500/20 border border-red-300/20 rounded-xl p-4 backdrop-blur-sm">
-              <div className="flex items-center gap-3">
-                <svg
-                  className="w-6 h-6"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <p className="font-medium">
-                  Your trial is ending soon! Upgrade now to keep your premium
-                  features.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-3">
-          <button
-            onClick={handlePremiumUpgrade}
-            className="w-full bg-white text-blue-600 rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-              />
-            </svg>
-            Upgrade to Premium
-          </button>
-          <p className="text-center text-sm text-gray-500">
-            Monthly plan • Cancel anytime
-          </p>
-        </div>
-      </div>
-    );
+  // Add these functions before the return statement
+  const handleEditClick = () => {
+    if (userDetails) {
+      setEditedInfo({
+        firstName: userDetails.firstName || "",
+        lastName: userDetails.lastName || "",
+      });
+      setIsEditing(true);
+    }
   };
 
-  // Update the Premium Content render function
-  const renderPremiumContent = () => {
-    const startDate = userDetails.subscriptionStartDate?.toDate();
-    const endDate = userDetails.subscriptionEndDate?.toDate();
+  const handleSaveClick = async () => {
+    try {
+      const userRef = doc(db, "Users", auth.currentUser.uid);
+      await updateDoc(userRef, {
+        firstName: editedInfo.firstName,
+        lastName: editedInfo.lastName,
+        lastUpdated: new Date(),
+      });
 
-    return (
-      <div className="premium-gold-card rounded-[2rem] p-8 space-y-8">
-        <div className="premium-card-shine" />
-
-        <div className="text-center space-y-6">
-          <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full text-white font-semibold shadow-lg">
-            <svg
-              className="w-5 h-5 mr-2"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
-                clipRule="evenodd"
-              />
-            </svg>
-            GOLD MEMBER
-          </div>
-
-          <div className="floating">
-            <svg
-              className="w-16 h-16 text-yellow-600 mx-auto"
-              fill="currentColor"
-              viewBox="0 0 20 20"
-            >
-              <path
-                fillRule="evenodd"
-                d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </div>
-
-          <h3 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-amber-600">
-            Premium Features Active
-          </h3>
-
-          <div className="bg-white rounded-xl p-6 shadow-md space-y-4">
-            <div>
-              <p className="text-gray-600">Started:</p>
-              <p className="text-xl font-semibold text-yellow-700">
-                {startDate?.toLocaleDateString("en-IN")}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-600">Next Billing:</p>
-              <p className="text-xl font-semibold text-yellow-700">
-                {endDate?.toLocaleDateString("en-IN")}
-              </p>
-            </div>
-            <div className="pt-4 border-t border-gray-100">
-              <div className="flex items-center justify-center gap-2">
-                <svg
-                  className="w-5 h-5 text-green-500"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <p className="text-2xl font-bold text-green-600">
-                  Active Subscription
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <button
-            onClick={() =>
-              window.open(
-                "https://billing.stripe.com/p/login/test_28o28Z1Ox3mL3GE288",
-                "_blank"
-              )
-            }
-            className="w-full bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-            Manage Subscription
-          </button>
-          <p className="text-center text-sm text-gray-500">
-            Monthly billing • Premium support included
-          </p>
-        </div>
-      </div>
-    );
+      setUserDetails((prev) => ({
+        ...prev,
+        firstName: editedInfo.firstName,
+        lastName: editedInfo.lastName,
+      }));
+      setIsEditing(false);
+      toast.success("Profile updated successfully!");
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile. Please try again.");
+    }
   };
 
-  // Add helper function to check for gold features access
+  const handleDeleteAccount = async () => {
+    try {
+      const user = auth.currentUser;
+
+      // Delete user's predictions
+      const predictionsRef = collection(db, "Users", user.uid, "predictions");
+      const predictionsSnapshot = await getDocs(predictionsRef);
+      const batch = writeBatch(db);
+
+      predictionsSnapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      // Delete user document
+      const userRef = doc(db, "Users", user.uid);
+      batch.delete(userRef);
+
+      // Commit the batch
+      await batch.commit();
+
+      // Delete the user account
+      await user.delete();
+
+      // Sign out and redirect
+      await signOut(auth);
+      navigate("/login");
+      toast.success("Account deleted successfully");
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      toast.error("Failed to delete account. Please try again.");
+    }
+  };
+
+  // Add the hasGoldAccess function before the return statement
   const hasGoldAccess = () => {
     return (
       subscriptionPlan === "Gold" &&
@@ -948,7 +692,7 @@ const Profile = () => {
     );
   };
 
-  // Add this to the Profile component where the date range state is defined
+  // Add the clearDateFilter function before the return statement
   const clearDateFilter = () => {
     setDateRange({
       startDate: "",
@@ -978,11 +722,11 @@ const Profile = () => {
                         </h3>
                         <div className="h-1 w-12 bg-[#1d5a7b] rounded"></div>
                       </div>
-                      {hasGoldAccess() && (
+                      {!isLoading && hasGoldAccess() && (
                         <div className="gold-member-badge transform hover:scale-105 transition-all">
-                          <div className="flex items-center gap-2 px-4 py-2">
+                          <div className="flex items-center gap-2 px-4 py-2 bg-yellow-100 rounded-full">
                             <svg
-                              className="w-5 h-5"
+                              className="w-5 h-5 text-yellow-600"
                               fill="currentColor"
                               viewBox="0 0 20 20"
                             >
@@ -992,9 +736,11 @@ const Profile = () => {
                                 clipRule="evenodd"
                               />
                             </svg>
-                            {userDetails.subscriptionStatus === "trial"
-                              ? "TRIAL ACTIVE"
-                              : "GOLD MEMBER"}
+                            <span className="text-yellow-800 font-semibold">
+                              {userDetails?.subscriptionStatus === "trial"
+                                ? "TRIAL ACTIVE"
+                                : "GOLD MEMBER"}
+                            </span>
                           </div>
                         </div>
                       )}
@@ -1002,10 +748,18 @@ const Profile = () => {
 
                     <div className="mb-12">
                       <h1 className="text-5xl font-bold mb-2 bg-gradient-to-r from-[#1d5a7b] to-[#2d7ba4] bg-clip-text text-transparent">
-                        {userDetails.firstName}
+                        {isLoading ? (
+                          <div className="animate-pulse bg-gray-200 h-12 w-48 rounded"></div>
+                        ) : (
+                          userDetails?.firstName || "User"
+                        )}
                       </h1>
                       <h2 className="text-4xl font-bold text-gray-600 mb-4">
-                        {userDetails.lastName}
+                        {isLoading ? (
+                          <div className="animate-pulse bg-gray-200 h-10 w-40 rounded"></div>
+                        ) : (
+                          userDetails?.lastName || ""
+                        )}
                       </h2>
                       <p className="text-gray-600 text-lg leading-relaxed">
                         Customer at Churn Prediction Service.
@@ -1017,20 +771,60 @@ const Profile = () => {
                     <div className="space-y-6 mb-12">
                       <div className="flex items-center gap-6">
                         <span className="text-gray-500 w-32">First name:</span>
-                        <span className="font-medium text-gray-800">
-                          {userDetails.firstName}
-                        </span>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editedInfo.firstName}
+                            onChange={(e) =>
+                              setEditedInfo((prev) => ({
+                                ...prev,
+                                firstName: e.target.value,
+                              }))
+                            }
+                            className="font-medium text-gray-800 px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b]"
+                          />
+                        ) : (
+                          <span className="font-medium text-gray-800">
+                            {isLoading ? (
+                              <div className="animate-pulse bg-gray-200 h-5 w-24 rounded"></div>
+                            ) : (
+                              userDetails?.firstName || "N/A"
+                            )}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-6">
                         <span className="text-gray-500 w-32">Last name:</span>
-                        <span className="font-medium text-gray-800">
-                          {userDetails.lastName}
-                        </span>
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={editedInfo.lastName}
+                            onChange={(e) =>
+                              setEditedInfo((prev) => ({
+                                ...prev,
+                                lastName: e.target.value,
+                              }))
+                            }
+                            className="font-medium text-gray-800 px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b]"
+                          />
+                        ) : (
+                          <span className="font-medium text-gray-800">
+                            {isLoading ? (
+                              <div className="animate-pulse bg-gray-200 h-5 w-24 rounded"></div>
+                            ) : (
+                              userDetails?.lastName || "N/A"
+                            )}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-6">
                         <span className="text-gray-500 w-32">Email:</span>
                         <span className="font-medium text-gray-800">
-                          {userDetails.email}
+                          {isLoading ? (
+                            <div className="animate-pulse bg-gray-200 h-5 w-32 rounded"></div>
+                          ) : (
+                            userDetails?.email || "N/A"
+                          )}
                         </span>
                       </div>
                     </div>
@@ -1055,6 +849,49 @@ const Profile = () => {
                         </svg>
                         Logout
                       </button>
+
+                      {isEditing ? (
+                        <button
+                          onClick={handleSaveClick}
+                          className="bg-green-500 hover:bg-green-600 text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          Save Changes
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleEditClick}
+                          className="bg-blue-500 hover:bg-blue-600 text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                          Edit Profile
+                        </button>
+                      )}
+
                       <button
                         onClick={togglePredictionHistory}
                         className="bg-[#1d5a7b] hover:bg-[#164e68] text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
@@ -1075,6 +912,26 @@ const Profile = () => {
                         {showPredictions
                           ? "Hide Predictions"
                           : "View Past Predictions"}
+                      </button>
+
+                      <button
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="bg-red-600 hover:bg-red-700 text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                        Delete Account
                       </button>
                     </div>
                   </div>
@@ -1484,12 +1341,12 @@ const Profile = () => {
                       </div>
                       <button
                         onClick={clearDateFilter}
+                        disabled={!dateRange.startDate && !dateRange.endDate}
                         className={`p-1.5 rounded-md border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b] transition-colors duration-200 ${
                           dateRange.startDate || dateRange.endDate
                             ? "bg-gray-100 text-gray-700"
-                            : "bg-gray-50 text-gray-400"
+                            : "bg-gray-50 text-gray-400 cursor-not-allowed"
                         }`}
-                        disabled={!dateRange.startDate && !dateRange.endDate}
                       >
                         <svg
                           className="w-4 h-4"
