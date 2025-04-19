@@ -23,6 +23,7 @@ import Account from "./components/Account";
 import PredictionDetail from "./components/PredictionDetail";
 import CsvUpload from "./components/CsvUpload";
 import { AnimatePresence } from "framer-motion";
+import BatchPredictionDetail from "./components/BatchPredictionDetail";
 
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -135,6 +136,14 @@ const appRouter = (user) =>
           element: (
             <ProtectedRoute user={user}>
               <CsvUpload />
+            </ProtectedRoute>
+          ),
+        },
+        {
+          path: "/batch-prediction-detail/:id",
+          element: (
+            <ProtectedRoute user={user}>
+              <BatchPredictionDetail />
             </ProtectedRoute>
           ),
         },
