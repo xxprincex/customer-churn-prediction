@@ -1387,7 +1387,7 @@ const Profile = () => {
                             Start 1-Week Free Trial
                           </button>
                           <p className="text-center text-sm text-gray-500">
-                            No credit card required • Cancel anytime
+                            No credit card required.
                           </p>
                         </div>
                       </div>
