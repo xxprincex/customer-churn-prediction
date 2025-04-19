@@ -1,8 +1,114 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { FaCheckCircle, FaExclamationTriangle } from "react-icons/fa";
 import { MdError } from "react-icons/md";
+import { auth, db } from "./firebase";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  doc,
+  getDoc,
+} from "firebase/firestore";
+import { toast } from "react-toastify";
 
 const Result = ({ prediction, formData, error }) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [userType, setUserType] = useState(null);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  useEffect(() => {
+    const checkUserType = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const userRef = doc(db, "Users", user.uid);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserType(userData.subscriptionPlan || "Free");
+          // For Free users, autoSave is always true
+          // For Gold/Premium users, use their setting or default to false
+          const shouldAutoSave =
+            userData.subscriptionPlan === "Free"
+              ? true
+              : (userData.autoSaveEnabled ?? false);
+          setAutoSaveEnabled(shouldAutoSave);
+          setIsInitialLoad(false);
+        }
+      } catch (error) {
+        console.error("Error checking user type:", error);
+        setIsInitialLoad(false);
+      }
+    };
+
+    checkUserType();
+  }, []);
+
+  useEffect(() => {
+    // Skip auto-save during initial load to prevent unwanted saves
+    if (isInitialLoad) return;
+
+    // Only auto save if:
+    // 1. We have a prediction to save
+    // 2. It hasn't been saved yet
+    // 3. Either:
+    //    - User is Free (always auto-save)
+    //    - User is Gold/Premium AND has auto-save enabled
+    const shouldAutoSave =
+      prediction &&
+      !isSaved &&
+      (userType === "Free" || (userType !== "Free" && autoSaveEnabled));
+
+    if (shouldAutoSave) {
+      handleSaveResult(true); // Pass true to indicate this is an auto-save
+    }
+  }, [prediction, userType, autoSaveEnabled, isInitialLoad]);
+
+  const handleSaveResult = async (isAutoSave = false) => {
+    if (isSaved) return;
+
+    setIsSaving(true);
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        toast.error("You must be logged in to save predictions");
+        return;
+      }
+
+      const predictionsRef = collection(db, "Users", user.uid, "predictions");
+      const predictionDoc = {
+        timestamp: serverTimestamp(),
+        formData,
+        prediction: prediction.prediction,
+        churn_probability: prediction.churn_probability,
+        stay_probability: prediction.stay_probability,
+        prediction_label: prediction.prediction_label,
+        risk_factors: prediction.risk_factors,
+        confidence_score: prediction.confidence_score,
+        customerID: formData.CustomerID,
+        date: new Date().toISOString(),
+        autoSaved: isAutoSave,
+      };
+
+      await addDoc(predictionsRef, predictionDoc);
+      setIsSaved(true);
+
+      // Only show toast for manual saves or Free users
+      if (!isAutoSave || userType === "Free") {
+        toast.success("Prediction saved successfully!");
+      }
+    } catch (error) {
+      console.error("Error saving prediction:", error);
+      toast.error("Failed to save prediction");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (error) {
     return (
       <div className="mt-8 p-6 bg-red-50 rounded-lg">
@@ -304,6 +410,34 @@ const Result = ({ prediction, formData, error }) => {
   const { positiveIndicators, negativeIndicators } = getIndicators(formData);
   const recommendations = getRecommendations(prediction, formData);
 
+  const renderSaveButton = () => {
+    // Only show save button for Gold/Premium users with autoSave disabled
+    if (userType === "Free" || autoSaveEnabled || isSaved) return null;
+
+    return (
+      <div className="mt-6 flex justify-center">
+        <button
+          onClick={() => handleSaveResult(false)} // Pass false to indicate manual save
+          disabled={isSaving}
+          className={`px-6 py-2 rounded-full text-white font-medium transition-all duration-300 ${
+            isSaving
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-[#1d5a7b] hover:bg-[#164e68] hover:shadow-lg transform hover:scale-105"
+          }`}
+        >
+          {isSaving ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+              Saving...
+            </div>
+          ) : (
+            "Save Prediction"
+          )}
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="mt-8 p-6 bg-white rounded-lg shadow-lg">
       {/* Prediction Header */}
@@ -395,6 +529,8 @@ const Result = ({ prediction, formData, error }) => {
           </div>
         </div>
       </div>
+
+      {renderSaveButton()}
     </div>
   );
 };
