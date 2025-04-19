@@ -66,7 +66,7 @@ const Result = ({ prediction, formData, error }) => {
     if (shouldAutoSave) {
       handleSaveResult(true); // Pass true to indicate this is an auto-save
     }
-  }, [prediction, userType, autoSaveEnabled, isInitialLoad]);
+  }, [prediction]); // Only depend on prediction to prevent multiple saves
 
   const handleSaveResult = async (isAutoSave = false) => {
     if (isSaved) return;
@@ -97,10 +97,20 @@ const Result = ({ prediction, formData, error }) => {
       await addDoc(predictionsRef, predictionDoc);
       setIsSaved(true);
 
-      // Only show toast for manual saves or Free users
-      if (!isAutoSave || userType === "Free") {
-        toast.success("Prediction saved successfully!");
-      }
+      // Show toast for both auto-save and manual save
+      toast.success(
+        isAutoSave
+          ? "Prediction auto-saved to history!"
+          : "Prediction saved successfully!",
+        {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        }
+      );
     } catch (error) {
       console.error("Error saving prediction:", error);
       toast.error("Failed to save prediction");
