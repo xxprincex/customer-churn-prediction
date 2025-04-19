@@ -230,6 +230,8 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [password, setPassword] = useState("");
   const [reAuthError, setReAuthError] = useState("");
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+  const [showBatchHistory, setShowBatchHistory] = useState(false);
 
   // Add useEffect for handling body scroll
   useEffect(() => {
@@ -773,6 +775,114 @@ const Profile = () => {
       endDate: "",
     });
   };
+
+  // Add this after other useEffect hooks
+  useEffect(() => {
+    const loadUserPreferences = async () => {
+      try {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const userRef = doc(db, "Users", currentUser.uid);
+          const userDoc = await getDoc(userRef);
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setAutoSaveEnabled(userData.autoSaveEnabled || false);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading user preferences:", error);
+      }
+    };
+    loadUserPreferences();
+  }, []);
+
+  const handleAutoSaveToggle = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const userRef = doc(db, "Users", currentUser.uid);
+        await updateDoc(userRef, {
+          autoSaveEnabled: !autoSaveEnabled,
+          lastUpdated: new Date(),
+        });
+        setAutoSaveEnabled(!autoSaveEnabled);
+        toast.success(`Auto-save ${!autoSaveEnabled ? "enabled" : "disabled"}`);
+      }
+    } catch (error) {
+      console.error("Error updating auto-save preference:", error);
+      toast.error("Failed to update auto-save settings");
+    }
+  };
+
+  // Add this inside the JSX where you want to show prediction settings
+  const renderPredictionSettings = () => (
+    <div className="bg-white/80 backdrop-blur-lg rounded-[2rem] shadow-xl border border-white/20 overflow-hidden p-8 mt-8">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-xl font-bold text-gray-800">
+            Prediction Settings
+          </h3>
+          <p className="text-sm text-gray-600 mt-1">
+            Customize your prediction experience
+          </p>
+        </div>
+        <div className="h-1 w-20 bg-[#1d5a7b] rounded"></div>
+      </div>
+
+      <div className="space-y-6">
+        {/* Auto-save Toggle */}
+        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+          <div>
+            <h4 className="font-medium text-gray-800">Auto-save Predictions</h4>
+            <p className="text-sm text-gray-600">
+              {subscriptionPlan === "Free"
+                ? "All predictions are automatically saved"
+                : "Choose to automatically save all prediction results"}
+            </p>
+          </div>
+          {subscriptionPlan !== "Free" && (
+            <button
+              onClick={handleAutoSaveToggle}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#1d5a7b] focus:ring-offset-2 ${
+                autoSaveEnabled ? "bg-[#1d5a7b]" : "bg-gray-200"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  autoSaveEnabled ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          )}
+          {subscriptionPlan === "Free" && (
+            <div className="px-3 py-1 bg-gray-200 rounded-full text-sm text-gray-600">
+              Always On
+            </div>
+          )}
+        </div>
+
+        {/* Batch History Toggle */}
+        {subscriptionPlan !== "Free" && (
+          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+            <div>
+              <h4 className="font-medium text-gray-800">
+                Batch Prediction History
+              </h4>
+              <p className="text-sm text-gray-600">
+                View history of batch predictions
+              </p>
+            </div>
+            <button
+              onClick={() => setShowBatchHistory(!showBatchHistory)}
+              className="px-4 py-2 bg-[#1d5a7b] text-white rounded-lg hover:bg-[#164e68] transition-colors"
+            >
+              {showBatchHistory ? "Hide Batch History" : "Show Batch History"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
@@ -1346,12 +1456,34 @@ const Profile = () => {
               {/* Prediction History Section */}
               {showPredictions && (
                 <div className="mt-8 bg-white/80 backdrop-blur-lg rounded-[2rem] shadow-xl border border-white/20 overflow-hidden p-8">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-6">
                     <div>
                       <h3 className="text-xl font-bold text-gray-800">
                         Prediction History
                       </h3>
-                      <div className="h-0.5 w-20 bg-[#1d5a7b] rounded"></div>
+                      <div className="h-1 w-20 bg-[#1d5a7b] rounded"></div>
+                    </div>
+                    <div className="flex gap-4">
+                      <button
+                        onClick={() => setShowBatchHistory(false)}
+                        className={`px-4 py-2 rounded-lg ${
+                          !showBatchHistory
+                            ? "bg-[#1d5a7b] text-white"
+                            : "bg-gray-200 text-gray-700"
+                        }`}
+                      >
+                        Single Predictions
+                      </button>
+                      <button
+                        onClick={() => setShowBatchHistory(true)}
+                        className={`px-4 py-2 rounded-lg ${
+                          showBatchHistory
+                            ? "bg-[#1d5a7b] text-white"
+                            : "bg-gray-200 text-gray-700"
+                        }`}
+                      >
+                        Batch Predictions
+                      </button>
                     </div>
                   </div>
 
@@ -1673,6 +1805,8 @@ const Profile = () => {
           </div>
         </div>
       )}
+
+      {hasGoldAccess() && renderPredictionSettings()}
     </div>
   );
 };
