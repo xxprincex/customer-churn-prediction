@@ -1091,13 +1091,13 @@ const CsvResults = ({ results, fileName }) => {
                         <li>Develop referral incentives</li>
                       </ul>
                     </div>
-                  </li>
-                </ul>
+                        </li>
+                      </ul>
+                    </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
       {/* Enhanced Business Impact Analysis Section */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-700 mb-4 flex items-center">
@@ -1362,8 +1362,8 @@ const CsvResults = ({ results, fileName }) => {
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         prediction.prediction === 1
-                          ? "bg-red-100 text-red-800"
-                          : "bg-green-100 text-green-800"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-green-100 text-green-800"
                       }`}
                     >
                       {prediction.prediction === 1 ? "Will Churn" : "Will Stay"}
@@ -1378,10 +1378,10 @@ const CsvResults = ({ results, fileName }) => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center text-green-600">
-                      <FaCheckCircle className="mr-1.5 h-4 w-4" />
-                      <span className="text-xs">Processed</span>
-                    </div>
+                      <div className="flex items-center text-green-600">
+                        <FaCheckCircle className="mr-1.5 h-4 w-4" />
+                        <span className="text-xs">Processed</span>
+                      </div>
                   </td>
                 </tr>
               );
@@ -1464,7 +1464,7 @@ const CsvResults = ({ results, fileName }) => {
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-700 mb-4">
           Churn Prediction Distribution
-        </h3>
+          </h3>
         <div className="flex justify-center">
           <div className="relative w-64 h-64">
             <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -1483,20 +1483,20 @@ const CsvResults = ({ results, fileName }) => {
               </p>
               <p className="text-sm text-gray-500">Churn Rate</p>
             </div>
-          </div>
-        </div>
+            </div>
+            </div>
         <div className="flex justify-center mt-4 space-x-8">
           <div className="flex items-center">
             <div className="w-4 h-4 bg-red-500 rounded-full mr-2"></div>
             <span className="text-sm text-gray-600">
               Likely to Churn ({churnCount})
-            </span>
-          </div>
+                </span>
+              </div>
           <div className="flex items-center">
             <div className="w-4 h-4 bg-green-500 rounded-full mr-2"></div>
             <span className="text-sm text-gray-600">
               Likely to Stay ({stayCount})
-            </span>
+              </span>
           </div>
         </div>
       </div>
@@ -1574,10 +1574,10 @@ const CsvResults = ({ results, fileName }) => {
                       <div className="absolute inset-0 bg-white/20 rounded-full"></div>
                     </div>
                   </div>
-                </div>
+                      </div>
               );
             })}
-        </div>
+                    </div>
       </div>
 
       {/* Customer Tenure Distribution */}
@@ -1618,7 +1618,7 @@ const CsvResults = ({ results, fileName }) => {
               );
             })}
         </div>
-      </div>
+        </div>
 
       {/* Satisfaction Score Distribution */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -1648,10 +1648,10 @@ const CsvResults = ({ results, fileName }) => {
                     className={`w-12 bg-gradient-to-t ${colorClass} rounded-t-lg transition-all duration-500`}
                     style={{ height: `${Math.max(percentage * 2, 2)}px` }}
                   />
-                </div>
+          </div>
                 <div className="mt-2 text-sm text-gray-600">
                   {count} customers
-                </div>
+          </div>
                 <div className="text-xs text-gray-500">
                   {percentage.toFixed(1)}%
                 </div>
@@ -1692,17 +1692,17 @@ const CsvResults = ({ results, fileName }) => {
                   <div className="text-xs text-gray-600">{monthName}</div>
                   <div className="text-xs text-gray-500">{year}</div>
                 </div>
-              </div>
+                </div>
             );
           })}
-        </div>
+              </div>
         <div className="mt-4 flex justify-center space-x-4">
           <div className="flex items-center">
             <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
             <span className="text-sm text-gray-600">Churn Rate</span>
+            </div>
+            </div>
           </div>
-        </div>
-      </div>
 
       {/* Order Frequency Distribution */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -1743,8 +1743,8 @@ const CsvResults = ({ results, fileName }) => {
                       className="h-full rounded-full bg-gradient-to-r from-purple-500 to-purple-400"
                       style={{ width: `${percentage}%` }}
                     />
-                  </div>
-                </div>
+            </div>
+            </div>
               );
             });
           })()}
@@ -1755,7 +1755,7 @@ const CsvResults = ({ results, fileName }) => {
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-700 mb-4">
           Customer Engagement Metrics
-        </h3>
+          </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* App Usage Distribution */}
           <div>
@@ -1790,19 +1790,19 @@ const CsvResults = ({ results, fileName }) => {
                         <span className="text-gray-500">
                           {percentage.toFixed(1)}%
                         </span>
-                      </div>
+            </div>
                       <div className="w-full bg-gray-100 rounded-full h-2">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-indigo-400"
                           style={{ width: `${percentage}%` }}
                         />
-                      </div>
+            </div>
                     </div>
                   );
                 });
               })()}
-            </div>
           </div>
+        </div>
 
           {/* Device Registration */}
           <div>
@@ -1831,8 +1831,8 @@ const CsvResults = ({ results, fileName }) => {
                           </span>
                           <span className="text-gray-500">
                             {percentage.toFixed(1)}%
-                          </span>
-                        </div>
+                </span>
+              </div>
                         <div className="w-full bg-gray-100 rounded-full h-2">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400"
@@ -1846,7 +1846,7 @@ const CsvResults = ({ results, fileName }) => {
             </div>
           </div>
         </div>
-      </div>
+          </div>
 
       {/* Payment Method Distribution */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -1882,23 +1882,23 @@ const CsvResults = ({ results, fileName }) => {
                         className={`w-16 bg-gradient-to-t ${colors[index % colors.length]} rounded-t-lg transition-all duration-500`}
                         style={{ height: `${Math.max(percentage * 1.5, 10)}%` }}
                       />
-                    </div>
+          </div>
                     <div className="text-sm font-medium text-gray-700">
                       {method}
-                    </div>
+            </div>
                     <div className="text-xs text-gray-500 mt-1">
                       {percentage.toFixed(1)}%
-                    </div>
+            </div>
                     <div className="text-xs text-gray-400">
                       {count} customers
-                    </div>
-                  </div>
+            </div>
+            </div>
                 );
               }
             );
           })()}
+          </div>
         </div>
-      </div>
 
       {/* Device Usage Analysis */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -1931,20 +1931,20 @@ const CsvResults = ({ results, fileName }) => {
                     <span className="text-sm text-gray-500">
                       {percentage.toFixed(1)}%
                     </span>
-                  </div>
+              </div>
                   <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
                     <div
                       className={`h-full rounded-full bg-gradient-to-r ${colors[device] || colors["Other"]}`}
                       style={{ width: `${percentage}%` }}
                     />
-                  </div>
+              </div>
                   <div className="text-xs text-gray-500">{count} users</div>
-                </div>
+            </div>
               );
             });
           })()}
-        </div>
-      </div>
+          </div>
+              </div>
 
       {/* Customer Activity Trends (Line Graph) */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -2001,12 +2001,12 @@ const CsvResults = ({ results, fileName }) => {
                   {Array.from({ length: 13 }).map((_, i) => (
                     <div key={i} className="border-l border-gray-100 h-full" />
                   ))}
-                </div>
+              </div>
                 <div className="absolute inset-0 grid grid-rows-8 gap-0">
                   {Array.from({ length: 9 }).map((_, i) => (
                     <div key={i} className="border-t border-gray-100 w-full" />
                   ))}
-                </div>
+        </div>
 
                 {/* Lines */}
                 <svg
@@ -2015,7 +2015,7 @@ const CsvResults = ({ results, fileName }) => {
                   preserveAspectRatio="none"
                 >
                   {/* Orders Line */}
-                  <path
+                <path
                     d={tenures
                       .map((t, i) => {
                         const x = (parseInt(t) / maxTenure) * 1200;
@@ -2024,12 +2024,12 @@ const CsvResults = ({ results, fileName }) => {
                       })
                       .join(" ")}
                     stroke="#EF4444"
-                    strokeWidth="2"
-                    fill="none"
+                  strokeWidth="2"
+                fill="none"
                   />
 
                   {/* Spending Line */}
-                  <path
+                <path
                     d={tenures
                       .map((t, i) => {
                         const x = (parseInt(t) / maxTenure) * 1200;
@@ -2038,12 +2038,12 @@ const CsvResults = ({ results, fileName }) => {
                       })
                       .join(" ")}
                     stroke="#10B981"
-                    strokeWidth="2"
-                    fill="none"
+                  strokeWidth="2"
+                fill="none"
                   />
 
                   {/* App Hours Line */}
-                  <path
+                <path
                     d={tenures
                       .map((t, i) => {
                         const x = (parseInt(t) / maxTenure) * 1200;
@@ -2052,31 +2052,31 @@ const CsvResults = ({ results, fileName }) => {
                       })
                       .join(" ")}
                     stroke="#6366F1"
-                    strokeWidth="2"
+                  strokeWidth="2"
                     fill="none"
-                  />
-                </svg>
+                />
+              </svg>
 
                 {/* Legend */}
                 <div className="absolute bottom-0 right-0 bg-white/80 p-2 rounded-lg flex gap-4">
-                  <div className="flex items-center">
+            <div className="flex items-center">
                     <div className="w-3 h-3 bg-red-500 rounded-full mr-2" />
                     <span className="text-xs text-gray-600">Orders</span>
-                  </div>
-                  <div className="flex items-center">
+            </div>
+            <div className="flex items-center">
                     <div className="w-3 h-3 bg-green-500 rounded-full mr-2" />
                     <span className="text-xs text-gray-600">Spending</span>
-                  </div>
-                  <div className="flex items-center">
+            </div>
+            <div className="flex items-center">
                     <div className="w-3 h-3 bg-indigo-500 rounded-full mr-2" />
                     <span className="text-xs text-gray-600">App Usage</span>
-                  </div>
+            </div>
                 </div>
               </>
             );
           })()}
+          </div>
         </div>
-      </div>
 
       {/* Customer Behavior Heatmap */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -2125,10 +2125,10 @@ const CsvResults = ({ results, fileName }) => {
                       <div key={segment} className="h-16 flex items-center">
                         <span className="text-sm font-medium text-gray-700">
                           {segment}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                </span>
+              </div>
+            ))}
+          </div>
                   <div className="grid grid-cols-4 gap-4">
                     {metrics.map((metric, j) => (
                       <div key={metric} className="space-y-4">
@@ -2140,29 +2140,29 @@ const CsvResults = ({ results, fileName }) => {
                         {segments.map((_, i) => {
                           const value = heatmapData[i][j];
                           const intensity = (value / maxValues[j]) * 100;
-                          return (
+              return (
                             <div
                               key={`${i}-${j}`}
                               className="h-16 rounded-lg flex items-center justify-center"
-                              style={{
+                    style={{
                                 background: `linear-gradient(to right, rgba(99, 102, 241, ${intensity / 100}), rgba(99, 102, 241, ${intensity / 100}))`,
                               }}
                             >
                               <span className="text-sm font-medium text-gray-700">
                                 {value.toFixed(1)}
                               </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
                 </div>
               );
-            })()}
+            })}
+          </div>
+            ))}
           </div>
         </div>
-      </div>
+              );
+            })()}
+            </div>
+            </div>
+          </div>
 
       {/* Correlation Scatter Plot */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -2194,12 +2194,12 @@ const CsvResults = ({ results, fileName }) => {
                   {Array.from({ length: 11 }).map((_, i) => (
                     <div key={i} className="border-l border-gray-100 h-full" />
                   ))}
-                </div>
+            </div>
                 <div className="absolute inset-0 grid grid-rows-8 gap-0">
                   {Array.from({ length: 9 }).map((_, i) => (
                     <div key={i} className="border-t border-gray-100 w-full" />
                   ))}
-                </div>
+            </div>
 
                 {/* Scatter Plot */}
                 <svg className="w-full h-full" viewBox="0 0 1000 800">
@@ -2223,10 +2223,10 @@ const CsvResults = ({ results, fileName }) => {
                 {/* Axes Labels */}
                 <div className="absolute bottom-0 left-0 w-full text-center text-sm text-gray-600">
                   Hours Spent on App
-                </div>
+          </div>
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-90 text-sm text-gray-600">
                   Order Value Change (%)
-                </div>
+            </div>
 
                 {/* Legend */}
                 <div className="absolute top-0 right-0 bg-white/80 p-2 rounded-lg">
@@ -2234,17 +2234,17 @@ const CsvResults = ({ results, fileName }) => {
                     <div className="flex items-center">
                       <div className="w-3 h-3 bg-red-500 opacity-60 rounded-full mr-2" />
                       <span className="text-xs text-gray-600">High Risk</span>
-                    </div>
+            </div>
                     <div className="flex items-center">
                       <div className="w-3 h-3 bg-yellow-500 opacity-60 rounded-full mr-2" />
                       <span className="text-xs text-gray-600">Medium Risk</span>
-                    </div>
+          </div>
                     <div className="flex items-center">
                       <div className="w-3 h-3 bg-green-500 opacity-60 rounded-full mr-2" />
                       <span className="text-xs text-gray-600">Low Risk</span>
-                    </div>
-                  </div>
-                </div>
+            </div>
+            </div>
+          </div>
               </>
             );
           })()}
