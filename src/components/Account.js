@@ -233,6 +233,10 @@ const Profile = () => {
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [showBatchHistory, setShowBatchHistory] = useState(false);
 
+  // Add this after other state declarations
+  const [batchPredictions, setBatchPredictions] = useState([]);
+  const [loadingBatch, setLoadingBatch] = useState(false);
+
   // Add useEffect for handling body scroll
   useEffect(() => {
     if (showDeleteConfirm) {
@@ -884,6 +888,141 @@ const Profile = () => {
     </div>
   );
 
+  // Add this function after other function declarations
+  const fetchBatchPredictions = async () => {
+    setLoadingBatch(true);
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        console.log("No authenticated user found");
+        setLoadingBatch(false);
+        return;
+      }
+
+      const batchPredictionsRef = collection(
+        db,
+        "Users",
+        currentUser.uid,
+        "batchPredictions"
+      );
+      const q = query(batchPredictionsRef, orderBy("timestamp", "desc"));
+      const querySnapshot = await getDocs(q);
+
+      const batchData = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        batchData.push({
+          id: doc.id,
+          ...data,
+          date: data.timestamp
+            ? new Date(data.timestamp.toDate()).toLocaleString()
+            : new Date(data.saveTimestamp).toLocaleString(),
+        });
+      });
+
+      setBatchPredictions(batchData);
+    } catch (error) {
+      console.error("Error fetching batch predictions:", error);
+      toast.error("Failed to load batch predictions");
+    } finally {
+      setLoadingBatch(false);
+    }
+  };
+
+  // Add this useEffect to fetch batch predictions when toggled
+  useEffect(() => {
+    if (showBatchHistory && showPredictions) {
+      fetchBatchPredictions();
+    }
+  }, [showBatchHistory, showPredictions]);
+
+  // Add this function to render batch predictions
+  const renderBatchPredictions = () => (
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-6 py-4 text-left text-sm font-bold text-[#1d5a7b] uppercase tracking-wider">
+              Date
+            </th>
+            <th className="px-6 py-4 text-left text-sm font-bold text-[#1d5a7b] uppercase tracking-wider">
+              File Name
+            </th>
+            <th className="px-6 py-4 text-left text-sm font-bold text-[#1d5a7b] uppercase tracking-wider">
+              Total Records
+            </th>
+            <th className="px-6 py-4 text-left text-sm font-bold text-[#1d5a7b] uppercase tracking-wider">
+              Churn Risk
+            </th>
+            <th className="px-6 py-4 text-left text-sm font-bold text-[#1d5a7b] uppercase tracking-wider">
+              Details
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {batchPredictions.map((batch) => (
+            <tr
+              key={batch.id}
+              className="hover:bg-gray-50 transition-colors duration-200"
+            >
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                {batch.date}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                {batch.fileName}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                {batch.totalRecords}
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm text-red-600">
+                    High: {batch.summary?.highRiskCount || 0}
+                  </span>
+                  <span className="text-sm text-yellow-600">
+                    Medium: {batch.summary?.mediumRiskCount || 0}
+                  </span>
+                  <span className="text-sm text-green-600">
+                    Low: {batch.summary?.lowRiskCount || 0}
+                  </span>
+                </div>
+              </td>
+              <td className="px-6 py-4 whitespace-nowrap">
+                <button
+                  onClick={() =>
+                    navigate(`/batch-prediction-detail/${batch.id}`)
+                  }
+                  className="inline-flex items-center px-3 py-1 border border-[#1d5a7b] text-sm font-medium rounded-md text-[#1d5a7b] hover:bg-[#1d5a7b] hover:text-white transition-colors duration-200"
+                >
+                  <svg
+                    className="w-4 h-4 mr-1.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                  View Details
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="w-full pt-[140px] md:pt-[160px] pb-12 px-4">
@@ -1466,20 +1605,20 @@ const Profile = () => {
                     <div className="flex gap-4">
                       <button
                         onClick={() => setShowBatchHistory(false)}
-                        className={`px-4 py-2 rounded-lg ${
+                        className={`px-4 py-2 rounded-lg transition-all duration-200 ${
                           !showBatchHistory
-                            ? "bg-[#1d5a7b] text-white"
-                            : "bg-gray-200 text-gray-700"
+                            ? "bg-[#1d5a7b] text-white shadow-lg"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                         }`}
                       >
                         Single Predictions
                       </button>
                       <button
                         onClick={() => setShowBatchHistory(true)}
-                        className={`px-4 py-2 rounded-lg ${
+                        className={`px-4 py-2 rounded-lg transition-all duration-200 ${
                           showBatchHistory
-                            ? "bg-[#1d5a7b] text-white"
-                            : "bg-gray-200 text-gray-700"
+                            ? "bg-[#1d5a7b] text-white shadow-lg"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                         }`}
                       >
                         Batch Predictions
@@ -1487,20 +1626,78 @@ const Profile = () => {
                     </div>
                   </div>
 
-                  {/* Search and Filter Section */}
-                  <div className="mb-6 space-y-4 sm:space-y-0 sm:flex sm:gap-4">
-                    <div className="flex-1">
-                      <div className="relative w-64">
-                        <input
-                          type="text"
-                          placeholder="Search by Customer ID..."
-                          value={searchCustomerId}
-                          onChange={(e) => setSearchCustomerId(e.target.value)}
-                          className="w-full pl-8 pr-3 py-1.5 rounded-md border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b] text-sm"
-                        />
-                        <span className="absolute left-2.5 top-1/2 transform -translate-y-1/2">
+                  {/* Search and Filter Section - Only show for single predictions */}
+                  {!showBatchHistory && (
+                    <div className="mb-6 space-y-4 sm:space-y-0 sm:flex sm:gap-4">
+                      <div className="flex-1">
+                        <div className="relative w-64">
+                          <input
+                            type="text"
+                            placeholder="Search by Customer ID..."
+                            value={searchCustomerId}
+                            onChange={(e) =>
+                              setSearchCustomerId(e.target.value)
+                            }
+                            className="w-full pl-8 pr-3 py-1.5 rounded-md border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b] text-sm"
+                          />
+                          <span className="absolute left-2.5 top-1/2 transform -translate-y-1/2">
+                            <svg
+                              className="w-3.5 h-3.5 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                              />
+                            </svg>
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="relative w-36">
+                          <input
+                            type="date"
+                            value={dateRange.startDate}
+                            onChange={(e) =>
+                              setDateRange((prev) => ({
+                                ...prev,
+                                startDate: e.target.value,
+                              }))
+                            }
+                            className="w-full pl-3 pr-2 py-1.5 rounded-md border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b] text-sm"
+                          />
+                        </div>
+                        <span className="text-gray-500 text-sm font-medium">
+                          to
+                        </span>
+                        <div className="relative w-36">
+                          <input
+                            type="date"
+                            value={dateRange.endDate}
+                            onChange={(e) =>
+                              setDateRange((prev) => ({
+                                ...prev,
+                                endDate: e.target.value,
+                              }))
+                            }
+                            className="w-full pl-3 pr-2 py-1.5 rounded-md border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b] text-sm"
+                          />
+                        </div>
+                        <button
+                          onClick={clearDateFilter}
+                          disabled={!dateRange.startDate && !dateRange.endDate}
+                          className={`p-1.5 rounded-md border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b] transition-colors duration-200 ${
+                            dateRange.startDate || dateRange.endDate
+                              ? "bg-gray-100 text-gray-700"
+                              : "bg-gray-50 text-gray-400 cursor-not-allowed"
+                          }`}
+                        >
                           <svg
-                            className="w-3.5 h-3.5 text-gray-400"
+                            className="w-4 h-4"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -1509,53 +1706,25 @@ const Profile = () => {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                               strokeWidth="2"
-                              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                              d="M6 18L18 6M6 6l12 12"
                             />
                           </svg>
-                        </span>
+                        </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <div className="relative w-36">
-                        <input
-                          type="date"
-                          value={dateRange.startDate}
-                          onChange={(e) =>
-                            setDateRange((prev) => ({
-                              ...prev,
-                              startDate: e.target.value,
-                            }))
-                          }
-                          className="w-full pl-3 pr-2 py-1.5 rounded-md border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b] text-sm"
-                        />
-                      </div>
-                      <span className="text-gray-500 text-sm font-medium">
-                        to
-                      </span>
-                      <div className="relative w-36">
-                        <input
-                          type="date"
-                          value={dateRange.endDate}
-                          onChange={(e) =>
-                            setDateRange((prev) => ({
-                              ...prev,
-                              endDate: e.target.value,
-                            }))
-                          }
-                          className="w-full pl-3 pr-2 py-1.5 rounded-md border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b] text-sm"
-                        />
-                      </div>
-                      <button
-                        onClick={clearDateFilter}
-                        disabled={!dateRange.startDate && !dateRange.endDate}
-                        className={`p-1.5 rounded-md border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b] transition-colors duration-200 ${
-                          dateRange.startDate || dateRange.endDate
-                            ? "bg-gray-100 text-gray-700"
-                            : "bg-gray-50 text-gray-400 cursor-not-allowed"
-                        }`}
-                      >
+                  )}
+
+                  {loadingBatch || loading ? (
+                    <div className="flex justify-center items-center p-6">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+                    </div>
+                  ) : showBatchHistory ? (
+                    batchPredictions.length > 0 ? (
+                      renderBatchPredictions()
+                    ) : (
+                      <div className="text-center py-6 bg-gray-50 rounded-xl">
                         <svg
-                          className="w-4 h-4"
+                          className="w-12 h-12 text-gray-400 mx-auto mb-3"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -1564,17 +1733,15 @@ const Profile = () => {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth="2"
-                            d="M6 18L18 6M6 6l12 12"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
                           />
                         </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  {loading ? (
-                    <div className="flex justify-center items-center p-6">
-                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1d5a7b]"></div>
-                    </div>
+                        <p className="text-gray-500 text-sm">
+                          No batch predictions found. Upload a CSV file to see
+                          batch predictions here!
+                        </p>
+                      </div>
+                    )
                   ) : predictions.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
