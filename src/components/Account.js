@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { auth, db } from "./firebase";
 import { stripePromise, GOLD_PLAN_PRICE } from "../stripe";
 import {
@@ -204,17 +204,48 @@ const CountdownRing = ({ days, total = 7 }) => {
   );
 };
 
+// Update the Tooltip component styling
+const Tooltip = ({ children, content }) => {
+  const [show, setShow] = useState(false);
+  const timeoutRef = useRef(null);
+
+  const handleMouseEnter = () => {
+    timeoutRef.current = setTimeout(() => {
+      setShow(true);
+    }, 500); // Show tooltip after 500ms hover
+  };
+
+  const handleMouseLeave = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    setShow(false);
+  };
+
+  return (
+    <div className="relative inline-block">
+      <div
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        className="inline-block"
+      >
+        {children}
+      </div>
+      {show && (
+        <div className="absolute z-50 px-4 py-2 text-sm bg-white rounded-lg shadow-lg -top-12 left-1/2 transform -translate-x-1/2 whitespace-nowrap border border-gray-200">
+          {content}
+          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-white border-r border-b border-gray-200"></div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Profile = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [predictions, setPredictions] = useState([]);
-  const [showPredictions, setShowPredictions] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [subscriptionPlan, setSubscriptionPlan] = useState("Free");
-  const [searchCustomerId, setSearchCustomerId] = useState("");
-  const [dateRange, setDateRange] = useState({
-    startDate: "",
-    endDate: "",
-  });
+  const [loading, setLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
   const navigate = useNavigate();
@@ -236,6 +267,35 @@ const Profile = () => {
   // Add this after other state declarations
   const [batchPredictions, setBatchPredictions] = useState([]);
   const [loadingBatch, setLoadingBatch] = useState(false);
+  const [showPredictions, setShowPredictions] = useState(false);
+  const [searchCustomerId, setSearchCustomerId] = useState("");
+  const [dateRange, setDateRange] = useState({
+    startDate: "",
+    endDate: "",
+  });
+
+  // Filter predictions based on search and date range
+  const filteredPredictions = useMemo(() => {
+    return predictions.filter((pred) => {
+      const matchesSearch = searchCustomerId
+        ? pred.formData?.CustomerID?.toLowerCase().includes(
+            searchCustomerId.toLowerCase()
+          )
+        : true;
+
+      const predDate = new Date(pred.date);
+      const startDate = dateRange.startDate
+        ? new Date(dateRange.startDate)
+        : null;
+      const endDate = dateRange.endDate ? new Date(dateRange.endDate) : null;
+
+      const withinDateRange =
+        (!startDate || predDate >= startDate) &&
+        (!endDate || predDate <= endDate);
+
+      return matchesSearch && withinDateRange;
+    });
+  }, [predictions, searchCustomerId, dateRange]);
 
   // Add useEffect for handling body scroll
   useEffect(() => {
@@ -253,23 +313,37 @@ const Profile = () => {
     };
   }, [showDeleteConfirm]);
 
-  const filteredPredictions = predictions.filter((pred) => {
-    const matchesCustomerId = pred.formData?.CustomerID?.toLowerCase().includes(
-      searchCustomerId.toLowerCase()
-    );
+  // Add auto-save toggle handler
+  const handleAutoSaveToggle = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        toast.error("Please login to change settings");
+        return;
+      }
 
-    const predDate = new Date(pred.date);
-    const startDate = dateRange.startDate
-      ? new Date(dateRange.startDate)
-      : null;
-    const endDate = dateRange.endDate ? new Date(dateRange.endDate) : null;
+      const userRef = doc(db, "Users", currentUser.uid);
+      const userDoc = await getDoc(userRef);
 
-    const withinDateRange =
-      (!startDate || predDate >= startDate) &&
-      (!endDate || predDate <= endDate);
+      if (!userDoc.exists()) {
+        toast.error("User profile not found");
+        return;
+      }
 
-    return matchesCustomerId && withinDateRange;
-  });
+      const newAutoSaveValue = !autoSaveEnabled;
+
+      await updateDoc(userRef, {
+        autoSaveEnabled: newAutoSaveValue,
+        lastUpdated: new Date(),
+      });
+
+      setAutoSaveEnabled(newAutoSaveValue);
+      toast.success(`Auto-save ${newAutoSaveValue ? "enabled" : "disabled"}`);
+    } catch (error) {
+      console.error("Error updating auto-save setting:", error);
+      toast.error("Failed to update auto-save setting");
+    }
+  };
 
   const fetchPredictionHistory = async () => {
     setLoading(true);
@@ -547,8 +621,8 @@ const Profile = () => {
 
   const fetchUserData = async () => {
     try {
-    const currentUser = auth.currentUser;
-    if (currentUser) {
+      const currentUser = auth.currentUser;
+      if (currentUser) {
         const docRef = doc(db, "Users", currentUser.uid);
         const docSnap = await getDoc(docRef);
 
@@ -573,18 +647,18 @@ const Profile = () => {
               });
               setSubscriptionPlan("Free");
               toast.info("Your trial period has ended.");
+            }
+          } else {
+            setSubscriptionPlan("Free");
           }
         } else {
-            setSubscriptionPlan("Free");
-        }
-        } else {
           console.log("No user document found");
-        navigate("/login");
-      }
-    } else {
+          navigate("/login");
+        }
+      } else {
         console.log("No authenticated user");
-      setUserDetails(null);
-      navigate("/login");
+        setUserDetails(null);
+        navigate("/login");
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
@@ -765,7 +839,7 @@ const Profile = () => {
 
   // Add the hasGoldAccess function before the return statement
   const hasGoldAccess = () => {
-  return (
+    return (
       subscriptionPlan === "Gold" &&
       (userDetails?.subscriptionStatus === "trial" ||
         userDetails?.subscriptionStatus === "active")
@@ -800,93 +874,7 @@ const Profile = () => {
     loadUserPreferences();
   }, []);
 
-  const handleAutoSaveToggle = async () => {
-    try {
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const userRef = doc(db, "Users", currentUser.uid);
-        await updateDoc(userRef, {
-          autoSaveEnabled: !autoSaveEnabled,
-          lastUpdated: new Date(),
-        });
-        setAutoSaveEnabled(!autoSaveEnabled);
-        toast.success(`Auto-save ${!autoSaveEnabled ? "enabled" : "disabled"}`);
-      }
-    } catch (error) {
-      console.error("Error updating auto-save preference:", error);
-      toast.error("Failed to update auto-save settings");
-    }
-  };
-
-  // Add this inside the JSX where you want to show prediction settings
-  const renderPredictionSettings = () => (
-    <div className="bg-white/80 backdrop-blur-lg rounded-[2rem] shadow-xl border border-white/20 overflow-hidden p-8 mt-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h3 className="text-xl font-bold text-gray-800">
-            Prediction Settings
-          </h3>
-          <p className="text-sm text-gray-600 mt-1">
-            Customize your prediction experience
-          </p>
-        </div>
-        <div className="h-1 w-20 bg-[#1d5a7b] rounded"></div>
-      </div>
-
-      <div className="space-y-6">
-        {/* Auto-save Toggle */}
-        <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-          <div>
-            <h4 className="font-medium text-gray-800">Auto-save Predictions</h4>
-            <p className="text-sm text-gray-600">
-              {subscriptionPlan === "Free"
-                ? "All predictions are automatically saved"
-                : "Choose to automatically save all prediction results"}
-            </p>
-          </div>
-          {subscriptionPlan !== "Free" && (
-            <button
-              onClick={handleAutoSaveToggle}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#1d5a7b] focus:ring-offset-2 ${
-                autoSaveEnabled ? "bg-[#1d5a7b]" : "bg-gray-200"
-              }`}
-            >
-              <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  autoSaveEnabled ? "translate-x-6" : "translate-x-1"
-                }`}
-              />
-            </button>
-          )}
-          {subscriptionPlan === "Free" && (
-            <div className="px-3 py-1 bg-gray-200 rounded-full text-sm text-gray-600">
-              Always On
-            </div>
-          )}
-        </div>
-
-        {/* Batch History Toggle */}
-        {subscriptionPlan !== "Free" && (
-          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <div>
-              <h4 className="font-medium text-gray-800">
-                Batch Prediction History
-              </h4>
-              <p className="text-sm text-gray-600">
-                View history of batch predictions
-              </p>
-            </div>
-            <button
-              onClick={() => setShowBatchHistory(!showBatchHistory)}
-              className="px-4 py-2 bg-[#1d5a7b] text-white rounded-lg hover:bg-[#164e68] transition-colors"
-            >
-              {showBatchHistory ? "Hide Batch History" : "Show Batch History"}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+  // Using the handleAutoSaveToggle function defined earlier at line 251
 
   // Add this function after other function declarations
   const fetchBatchPredictions = async () => {
@@ -1042,32 +1030,32 @@ const Profile = () => {
                       <div>
                         <h3 className="text-sm font-medium text-[#1d5a7b]/70 uppercase tracking-wider mb-1">
                           Account Details
-                    </h3>
-                    <div className="h-1 w-12 bg-[#1d5a7b] rounded"></div>
-                  </div>
+                        </h3>
+                        <div className="h-1 w-12 bg-[#1d5a7b] rounded"></div>
+                      </div>
                       {!isLoading && hasGoldAccess() && (
                         <div className="gold-member-badge transform hover:scale-105 transition-all">
                           <div className="flex items-center gap-2 px-4 py-2 bg-yellow-100 rounded-full">
-                      <svg
+                            <svg
                               className="w-5 h-5 text-yellow-600"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
                               <path
                                 fillRule="evenodd"
                                 d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
                                 clipRule="evenodd"
                               />
-                      </svg>
+                            </svg>
                             <span className="text-yellow-800 font-semibold">
                               {userDetails?.subscriptionStatus === "trial"
                                 ? "TRIAL ACTIVE"
                                 : "GOLD MEMBER"}
-                    </span>
+                            </span>
                           </div>
                         </div>
-                  )}
-                </div>
+                      )}
+                    </div>
 
                     <div className="mb-12">
                       <h1 className="text-5xl font-bold mb-2 bg-gradient-to-r from-[#1d5a7b] to-[#2d7ba4] bg-clip-text text-transparent">
@@ -1076,20 +1064,20 @@ const Profile = () => {
                         ) : (
                           userDetails?.firstName || "User"
                         )}
-                  </h1>
+                      </h1>
                       <h2 className="text-4xl font-bold text-gray-600 mb-4">
                         {isLoading ? (
                           <div className="animate-pulse bg-gray-200 h-10 w-40 rounded"></div>
                         ) : (
                           userDetails?.lastName || ""
                         )}
-                  </h2>
+                      </h2>
                       <p className="text-gray-600 text-lg leading-relaxed">
-                    Customer at Churn Prediction Service.
-                    <br />
-                    Currently using our AI prediction tools.
-                  </p>
-                </div>
+                        Customer at Churn Prediction Service.
+                        <br />
+                        Currently using our AI prediction tools.
+                      </p>
+                    </div>
 
                     <div className="space-y-6 mb-12">
                       <div className="flex items-center gap-6">
@@ -1115,7 +1103,7 @@ const Profile = () => {
                             )}
                           </span>
                         )}
-                  </div>
+                      </div>
                       <div className="flex items-center gap-6">
                         <span className="text-gray-500 w-32">Last name:</span>
                         {isEditing ? (
@@ -1139,7 +1127,7 @@ const Profile = () => {
                             )}
                           </span>
                         )}
-                  </div>
+                      </div>
                       <div className="flex items-center gap-6">
                         <span className="text-gray-500 w-32">Email:</span>
                         <span className="font-medium text-gray-800">
@@ -1149,97 +1137,13 @@ const Profile = () => {
                             userDetails?.email || "N/A"
                           )}
                         </span>
-                  </div>
-                </div>
+                      </div>
+                    </div>
 
                     <div className="flex flex-wrap gap-4">
-                  <button
-                    onClick={handleLogout}
+                      <button
+                        onClick={handleLogout}
                         className="bg-red-500 hover:bg-red-600 text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                    Logout
-                  </button>
-
-                      {isEditing ? (
-                  <button
-                          onClick={handleSaveClick}
-                          className="bg-green-500 hover:bg-green-600 text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                              d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                          Save Changes
-                  </button>
-                      ) : (
-                    <button
-                          onClick={handleEditClick}
-                          className="bg-blue-500 hover:bg-blue-600 text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                          Edit Profile
-                    </button>
-                  )}
-
-                      <button
-                        onClick={togglePredictionHistory}
-                        className="bg-[#1d5a7b] hover:bg-[#164e68] text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
-                      >
-                        <svg
-                          className="w-5 h-5"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                      >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                        />
-                      </svg>
-                        {showPredictions
-                          ? "Hide Predictions"
-                          : "View Past Predictions"}
-                      </button>
-
-                      <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="bg-red-600 hover:bg-red-700 text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
                       >
                         <svg
                           className="w-5 h-5"
@@ -1251,11 +1155,118 @@ const Profile = () => {
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
                           />
                         </svg>
-                        Delete Account
+                        Logout
                       </button>
+
+                      {isEditing ? (
+                        <button
+                          onClick={handleSaveClick}
+                          className="bg-green-500 hover:bg-green-600 text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          Save Changes
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleEditClick}
+                          className="bg-blue-500 hover:bg-blue-600 text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                          Edit Profile
+                        </button>
+                      )}
+
+                      <button
+                        onClick={togglePredictionHistory}
+                        className="bg-[#1d5a7b] hover:bg-[#164e68] text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
+                      >
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                          />
+                        </svg>
+                        {showPredictions
+                          ? "Hide Predictions"
+                          : "View Past Predictions"}
+                      </button>
+
+                      <div className="flex items-center gap-4">
+                        <Tooltip content="Choose to automatically save all prediction results">
+                          <button
+                            onClick={handleAutoSaveToggle}
+                            className={`${autoSaveEnabled ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-700"} text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105`}
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                            Auto-save {autoSaveEnabled ? "ON" : "OFF"}
+                          </button>
+                        </Tooltip>
+                        <button
+                          onClick={() => setShowDeleteConfirm(true)}
+                          className="bg-red-600 hover:bg-red-700 text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                          Delete Account
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1266,7 +1277,7 @@ const Profile = () => {
                         <div className="text-center">
                           <h3 className="text-2xl font-bold text-gray-800 mb-2">
                             Upgrade to Gold Plan
-                      </h3>
+                          </h3>
                           <div className="bg-yellow-100/90 rounded-xl p-3 mb-4 transform hover:scale-[1.02] transition-all duration-300 shadow-sm">
                             <p className="text-yellow-800 font-semibold">
                               Special Offer!
@@ -1274,7 +1285,7 @@ const Profile = () => {
                             <p className="text-yellow-700 text-sm">
                               Try Premium Features Free for 1 Week
                             </p>
-                    </div>
+                          </div>
                           <div className="flex items-center justify-center gap-2 mb-6">
                             <span className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">
                               ₹999
@@ -1291,15 +1302,15 @@ const Profile = () => {
                               <div className="bg-yellow-100 rounded-full p-2 mt-0.5">
                                 <svg
                                   className="w-4 h-4 text-yellow-600"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
                                   <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z" />
-                        </svg>
+                                </svg>
                               </div>
                               <div>
                                 <h4 className="font-semibold text-gray-800">
-                        Unlimited Predictions
+                                  Unlimited Predictions
                                 </h4>
                                 <p className="text-gray-600 text-sm">
                                   No restrictions on predictions
@@ -1313,15 +1324,15 @@ const Profile = () => {
                               <div className="bg-yellow-100 rounded-full p-2 mt-0.5">
                                 <svg
                                   className="w-4 h-4 text-yellow-600"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
                                   <path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 13H11V9.413l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13H5.5z" />
-                        </svg>
+                                </svg>
                               </div>
                               <div>
                                 <h4 className="font-semibold text-gray-800">
-                        Batch Processing
+                                  Batch Processing
                                 </h4>
                                 <p className="text-gray-600 text-sm">
                                   Process multiple files at once
@@ -1335,15 +1346,15 @@ const Profile = () => {
                               <div className="bg-yellow-100 rounded-full p-2 mt-0.5">
                                 <svg
                                   className="w-4 h-4 text-yellow-600"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
                                   <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-2 0c0 .993-.241 1.929-.668 2.754l-1.524-1.525a3.997 3.997 0 00.078-2.183l1.562-1.562C15.802 8.249 16 9.1 16 10zm-5.165 3.913l1.58 1.58A5.98 5.98 0 0110 16a5.976 5.976 0 01-2.516-.552l1.562-1.562a4.006 4.006 0 001.789.027zm-4.677-2.796a4.002 4.002 0 01-.041-2.08l-.08.08-1.53-1.533A5.98 5.98 0 004 10c0 .954.223 1.856.619 2.657l1.54-1.54zm1.088-6.45A5.974 5.974 0 0110 4c.954 0 1.856.223 2.657.619l-1.54 1.54a4.002 4.002 0 00-2.346.033L7.246 4.668zM12 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
+                                </svg>
                               </div>
                               <div>
                                 <h4 className="font-semibold text-gray-800">
-                        Priority Support
+                                  Priority Support
                                 </h4>
                                 <p className="text-gray-600 text-sm">
                                   24/7 premium customer support
@@ -1360,23 +1371,23 @@ const Profile = () => {
                           >
                             <svg
                               className="w-5 h-5 animate-pulse"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
                                 d="M13 10V3L4 14h7v7l9-11h-7z"
-                        />
-                      </svg>
+                              />
+                            </svg>
                             Start 1-Week Free Trial
                           </button>
                           <p className="text-center text-sm text-gray-500">
                             No credit card required • Cancel anytime
                           </p>
-                    </div>
+                        </div>
                       </div>
                     )}
 
@@ -1401,7 +1412,7 @@ const Profile = () => {
 
                             <h3 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-amber-600 mb-6">
                               Trial Period
-                      </h3>
+                            </h3>
 
                             <div className="bg-white rounded-xl p-6 shadow-md mb-8">
                               <div className="space-y-4">
@@ -1412,7 +1423,7 @@ const Profile = () => {
                                       ?.toDate()
                                       .toLocaleDateString("en-IN")}
                                   </p>
-                      </div>
+                                </div>
                                 <div>
                                   <p className="text-gray-600">Ends:</p>
                                   <p className="text-xl font-semibold text-yellow-700">
@@ -1429,8 +1440,8 @@ const Profile = () => {
                                         (1000 * 60 * 60 * 24)
                                     )}{" "}
                                     days remaining
-                      </p>
-                    </div>
+                                  </p>
+                                </div>
                               </div>
                             </div>
 
@@ -1443,15 +1454,15 @@ const Profile = () => {
                                 <div className="flex items-center gap-3">
                                   <svg
                                     className="w-6 h-6 text-red-500"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                  >
                                     <path
                                       fillRule="evenodd"
                                       d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v4a1 1 0 002 0V6a1 1 0 00-1-1z"
                                       clipRule="evenodd"
                                     />
-                        </svg>
+                                  </svg>
                                   <p className="text-red-800 font-medium">
                                     Your trial is ending soon! Upgrade now to
                                     keep your premium features.
@@ -1495,15 +1506,15 @@ const Profile = () => {
                             <div className="inline-flex items-center px-4 py-2 bg-yellow-400/20 rounded-full font-semibold backdrop-blur-sm">
                               <svg
                                 className="w-5 h-5 mr-2"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
                                 <path
                                   fillRule="evenodd"
                                   d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
                                   clipRule="evenodd"
                                 />
-                        </svg>
+                              </svg>
                               PREMIUM ACTIVE
                             </div>
 
@@ -1533,15 +1544,15 @@ const Profile = () => {
                                   <div className="flex items-center justify-center gap-2">
                                     <svg
                                       className="w-5 h-5 text-green-500"
-                          fill="currentColor"
-                          viewBox="0 0 20 20"
-                        >
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
                                       <path
                                         fillRule="evenodd"
                                         d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
                                         clipRule="evenodd"
                                       />
-                        </svg>
+                                    </svg>
                                     <p className="text-2xl font-bold text-green-600">
                                       Active Subscription
                                     </p>
@@ -1552,7 +1563,7 @@ const Profile = () => {
                           </div>
 
                           <div className="space-y-3">
-                    <button
+                            <button
                               onClick={() =>
                                 window.open(
                                   "https://billing.stripe.com/p/login/test_28o28Z1Ox3mL3GE288",
@@ -1560,17 +1571,17 @@ const Profile = () => {
                                 )
                               }
                               className={`${buttonCommonClasses} bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 hover:from-gray-200 hover:to-gray-300`}
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
+                            >
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
                                   d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
                                 />
                                 <path
@@ -1578,25 +1589,25 @@ const Profile = () => {
                                   strokeLinejoin="round"
                                   strokeWidth="2"
                                   d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
+                                />
+                              </svg>
                               Manage Subscription
-                    </button>
+                            </button>
                             <p className="text-center text-sm text-gray-500">
                               Monthly billing • Premium support included
                             </p>
                           </div>
                         </div>
-                )}
+                      )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Prediction History Section */}
-          {showPredictions && (
+              {/* Prediction History Section */}
+              {showPredictions && (
                 <div className="mt-8 bg-white/80 backdrop-blur-lg rounded-[2rem] shadow-xl border border-white/20 overflow-hidden p-8">
                   <div className="flex items-center justify-between mb-6">
-                <div>
+                    <div>
                       <h3 className="text-xl font-bold text-gray-800">
                         Prediction History
                       </h3>
@@ -1623,18 +1634,18 @@ const Profile = () => {
                       >
                         Batch Predictions
                       </button>
-                </div>
-              </div>
+                    </div>
+                  </div>
 
                   {/* Search and Filter Section - Only show for single predictions */}
                   {!showBatchHistory && (
                     <div className="mb-6 space-y-4 sm:space-y-0 sm:flex sm:gap-4">
-                <div className="flex-1">
+                      <div className="flex-1">
                         <div className="relative w-64">
-                  <input
-                    type="text"
-                    placeholder="Search by Customer ID..."
-                    value={searchCustomerId}
+                          <input
+                            type="text"
+                            placeholder="Search by Customer ID..."
+                            value={searchCustomerId}
                             onChange={(e) =>
                               setSearchCustomerId(e.target.value)
                             }
@@ -1655,19 +1666,19 @@ const Profile = () => {
                               />
                             </svg>
                           </span>
-                </div>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="relative w-36">
-                  <input
-                    type="date"
-                    value={dateRange.startDate}
-                    onChange={(e) =>
-                      setDateRange((prev) => ({
-                        ...prev,
-                        startDate: e.target.value,
-                      }))
-                    }
+                          <input
+                            type="date"
+                            value={dateRange.startDate}
+                            onChange={(e) =>
+                              setDateRange((prev) => ({
+                                ...prev,
+                                startDate: e.target.value,
+                              }))
+                            }
                             className="w-full pl-3 pr-2 py-1.5 rounded-md border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b] text-sm"
                           />
                         </div>
@@ -1675,18 +1686,18 @@ const Profile = () => {
                           to
                         </span>
                         <div className="relative w-36">
-                  <input
-                    type="date"
-                    value={dateRange.endDate}
-                    onChange={(e) =>
-                      setDateRange((prev) => ({
-                        ...prev,
-                        endDate: e.target.value,
-                      }))
-                    }
+                          <input
+                            type="date"
+                            value={dateRange.endDate}
+                            onChange={(e) =>
+                              setDateRange((prev) => ({
+                                ...prev,
+                                endDate: e.target.value,
+                              }))
+                            }
                             className="w-full pl-3 pr-2 py-1.5 rounded-md border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#1d5a7b] focus:border-[#1d5a7b] text-sm"
-                  />
-                </div>
+                          />
+                        </div>
                         <button
                           onClick={clearDateFilter}
                           disabled={!dateRange.startDate && !dateRange.endDate}
@@ -1710,14 +1721,14 @@ const Profile = () => {
                             />
                           </svg>
                         </button>
-              </div>
+                      </div>
                     </div>
                   )}
 
                   {loadingBatch || loading ? (
-                <div className="flex justify-center items-center p-6">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1d5a7b]"></div>
-                </div>
+                    <div className="flex justify-center items-center p-6">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+                    </div>
                   ) : showBatchHistory ? (
                     batchPredictions.length > 0 ? (
                       renderBatchPredictions()
@@ -1742,126 +1753,126 @@ const Profile = () => {
                         </p>
                       </div>
                     )
-              ) : predictions.length > 0 ? (
-                <div className="overflow-x-auto">
+                  ) : predictions.length > 0 ? (
+                    <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
-                      <tr>
+                          <tr>
                             <th className="px-6 py-4 text-left text-sm font-bold text-[#1d5a7b] uppercase tracking-wider">
-                          Date
-                        </th>
+                              Date
+                            </th>
                             <th className="px-6 py-4 text-left text-sm font-bold text-[#1d5a7b] uppercase tracking-wider">
-                          Customer ID
-                        </th>
+                              Customer ID
+                            </th>
                             <th className="px-6 py-4 text-left text-sm font-bold text-[#1d5a7b] uppercase tracking-wider">
-                          Prediction
-                        </th>
+                              Prediction
+                            </th>
                             <th className="px-6 py-4 text-left text-sm font-bold text-[#1d5a7b] uppercase tracking-wider">
-                          Churn Probability
-                        </th>
+                              Churn Probability
+                            </th>
                             <th className="px-6 py-4 text-left text-sm font-bold text-[#1d5a7b] uppercase tracking-wider">
-                          Details
-                        </th>
-                      </tr>
-                    </thead>
+                              Details
+                            </th>
+                          </tr>
+                        </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredPredictions.map((pred) => (
-                        <tr
-                          key={pred.id}
+                          {filteredPredictions.map((pred) => (
+                            <tr
+                              key={pred.id}
                               className="hover:bg-gray-50 transition-colors duration-200"
-                        >
+                            >
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 {pred.date}
-                          </td>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 {pred.formData?.CustomerID ||
                                   `Customer ${pred.id}`}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                            <span
+                                <span
                                   className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                pred.prediction === 1
-                                  ? "bg-red-100 text-red-800"
-                                  : "bg-green-100 text-green-800"
-                              }`}
-                            >
-                              {pred.prediction === 1
-                                ? "Likely to Churn"
-                                : "Likely to Stay"}
-                            </span>
-                          </td>
+                                    pred.prediction === 1
+                                      ? "bg-red-100 text-red-800"
+                                      : "bg-green-100 text-green-800"
+                                  }`}
+                                >
+                                  {pred.prediction === 1
+                                    ? "Likely to Churn"
+                                    : "Likely to Stay"}
+                                </span>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <span className="text-sm font-semibold text-gray-900">
-                            {(pred.churn_probability * 100).toFixed(1)}%
+                                  {(pred.churn_probability * 100).toFixed(1)}%
                                   churn |{" "}
                                   {(pred.stay_probability * 100).toFixed(1)}%
                                   stay
                                 </span>
-                          </td>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                            <button
-                              onClick={() =>
-                                navigate(`/prediction-detail/${pred.id}`)
-                              }
+                                <button
+                                  onClick={() =>
+                                    navigate(`/prediction-detail/${pred.id}`)
+                                  }
                                   className="inline-flex items-center px-3 py-1 border border-[#1d5a7b] text-sm font-medium rounded-md text-[#1d5a7b] hover:bg-[#1d5a7b] hover:text-white transition-colors duration-200"
-                            >
-                              <svg
+                                >
+                                  <svg
                                     className="w-4 h-4 mr-1.5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                                />
-                              </svg>
-                              View Details
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-6 bg-gray-50 rounded-xl">
-                  <svg
-                    className="w-12 h-12 text-gray-400 mx-auto mb-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                    />
-                  </svg>
-                  <p className="text-gray-500 text-sm">
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                    />
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth="2"
+                                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                    />
+                                  </svg>
+                                  View Details
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 bg-gray-50 rounded-xl">
+                      <svg
+                        className="w-12 h-12 text-gray-400 mx-auto mb-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                        />
+                      </svg>
+                      <p className="text-gray-500 text-sm">
                         No prediction history found. Make some predictions to
                         see them here!
-                  </p>
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-            </div>
-        </>
-      ) : (
+          </>
+        ) : (
           <div className="flex justify-center items-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
-        </div>
-      )}
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+          </div>
+        )}
       </div>
 
       {showDeleteConfirm && (
@@ -1972,8 +1983,6 @@ const Profile = () => {
           </div>
         </div>
       )}
-
-      {hasGoldAccess() && renderPredictionSettings()}
     </div>
   );
 };
