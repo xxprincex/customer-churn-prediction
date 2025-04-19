@@ -11,6 +11,7 @@ import {
   limit,
   getDoc,
   doc,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { AiOutlineQuestionCircle } from "react-icons/ai";
@@ -59,9 +60,11 @@ const generateCustomerId = async () => {
 const Prediction = () => {
   const [showCsvUpload, setShowCsvUpload] = useState(false);
   const [isGoldSubscriber, setIsGoldSubscriber] = useState(false);
+  const [dailyPredictions, setDailyPredictions] = useState(0);
+  const [lastPredictionDate, setLastPredictionDate] = useState(null);
 
   useEffect(() => {
-    const checkSubscription = async () => {
+    const checkUserStatus = async () => {
       try {
         const user = auth.currentUser;
         if (!user) return;
@@ -72,13 +75,28 @@ const Prediction = () => {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setIsGoldSubscriber(userData.subscriptionPlan === "Gold");
+
+          // Check and reset daily predictions if needed
+          const today = new Date().toDateString();
+          if (userData.lastPredictionDate === today) {
+            setDailyPredictions(userData.dailyPredictions || 0);
+            setLastPredictionDate(today);
+          } else {
+            // Reset counter for new day
+            setDailyPredictions(0);
+            setLastPredictionDate(today);
+            await updateDoc(userDocRef, {
+              dailyPredictions: 0,
+              lastPredictionDate: today,
+            });
+          }
         }
       } catch (error) {
-        console.error("Error checking subscription:", error);
+        console.error("Error checking user status:", error);
       }
     };
 
-    checkSubscription();
+    checkUserStatus();
   }, []);
 
   const [formData, setFormData] = useState({
@@ -212,6 +230,18 @@ const Prediction = () => {
 
     if (!validateForm()) {
       toast.error("Please fix the form errors before submitting");
+      return;
+    }
+
+    // Check daily prediction limit for free users
+    if (!isGoldSubscriber && dailyPredictions >= 20) {
+      toast.error(
+        "You've reached your daily prediction limit (20). Upgrade to Gold for unlimited predictions!",
+        {
+          position: "top-center",
+          autoClose: 5000,
+        }
+      );
       return;
     }
 
@@ -402,6 +432,33 @@ const Prediction = () => {
       };
 
       setPrediction(formattedPrediction);
+
+      // Update daily prediction count for free users
+      if (!isGoldSubscriber) {
+        const today = new Date().toDateString();
+        const newCount =
+          today === lastPredictionDate ? dailyPredictions + 1 : 1;
+
+        // Update user document with new prediction count
+        const userDocRef = doc(db, "Users", user.uid);
+        await updateDoc(userDocRef, {
+          dailyPredictions: newCount,
+          lastPredictionDate: today,
+        });
+
+        setDailyPredictions(newCount);
+        setLastPredictionDate(today);
+
+        if (newCount >= 15) {
+          toast.info(
+            `You have ${20 - newCount} predictions remaining today. Consider upgrading to Gold for unlimited predictions!`,
+            {
+              position: "top-center",
+              autoClose: 3000,
+            }
+          );
+        }
+      }
 
       // Show appropriate toast message based on adjusted prediction
       if (formattedPrediction.prediction === 1) {
