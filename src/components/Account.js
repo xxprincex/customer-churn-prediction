@@ -208,6 +208,7 @@ const CountdownRing = ({ days, total = 7 }) => {
 const Tooltip = ({ children, content }) => {
   const [show, setShow] = useState(false);
   const timeoutRef = useRef(null);
+  const tooltipRef = useRef(null);
 
   const handleMouseEnter = () => {
     timeoutRef.current = setTimeout(() => {
@@ -224,13 +225,16 @@ const Tooltip = ({ children, content }) => {
 
   return (
     <div className="relative inline-block">
-      <div onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      <div
+        ref={tooltipRef}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         {children}
         {show && (
-          <div className="absolute z-[9999] bottom-[calc(100%+10px)] left-1/2 -translate-x-1/2 min-w-max">
-            <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-gray-200 text-sm text-gray-800">
+          <div className="absolute z-[9999] bottom-full left-1/2 transform -translate-x-1/3 mb-2">
+            <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-gray-200 text-sm text-gray-800 whitespace-nowrap">
               {content}
-              <div className="absolute w-0 h-0 left-1/2 -translate-x-1/2 -bottom-2 border-l-[8px] border-l-transparent border-t-[8px] border-t-white border-r-[8px] border-r-transparent"></div>
             </div>
           </div>
         )}
