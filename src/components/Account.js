@@ -204,7 +204,7 @@ const CountdownRing = ({ days, total = 7 }) => {
   );
 };
 
-// Update the Tooltip component with better positioning
+// Simplified Tooltip component that works reliably
 const Tooltip = ({ children, content }) => {
   const [show, setShow] = useState(false);
   const timeoutRef = useRef(null);
@@ -212,7 +212,7 @@ const Tooltip = ({ children, content }) => {
   const handleMouseEnter = () => {
     timeoutRef.current = setTimeout(() => {
       setShow(true);
-    }, 500); // Show tooltip after 500ms hover
+    }, 500);
   };
 
   const handleMouseLeave = () => {
@@ -223,20 +223,14 @@ const Tooltip = ({ children, content }) => {
   };
 
   return (
-    <div className="relative inline-flex">
-      <div
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        className="relative"
-      >
+    <div className="relative inline-block">
+      <div onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
         {children}
         {show && (
-          <div className="absolute z-[100] left-1/2 -translate-x-1/2 bottom-full mb-2">
-            <div className="relative bg-white px-4 py-2 text-sm rounded-lg shadow-lg border border-gray-200 whitespace-nowrap">
+          <div className="absolute z-[9999] bottom-[calc(100%+10px)] left-1/2 -translate-x-1/2 min-w-max">
+            <div className="bg-white px-3 py-2 rounded-lg shadow-lg border border-gray-200 text-sm text-gray-800">
               {content}
-              <div className="absolute top-full left-1/2 -translate-x-1/2 -translate-y-1/2">
-                <div className="border-8 border-transparent border-t-white"></div>
-              </div>
+              <div className="absolute w-0 h-0 left-1/2 -translate-x-1/2 -bottom-2 border-l-[8px] border-l-transparent border-t-[8px] border-t-white border-r-[8px] border-r-transparent"></div>
             </div>
           </div>
         )}
