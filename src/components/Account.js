@@ -331,14 +331,21 @@ const Profile = () => {
         throw new Error("User document not found");
       }
 
+      const now = new Date();
+      const subscriptionEndDate = new Date(now);
+      subscriptionEndDate.setMonth(now.getMonth() + 1); // Add 1 month
+
       // Update user document with subscription details
       await updateDoc(userRef, {
         subscriptionPlan: "Gold",
         subscriptionStatus: "active",
-        subscriptionStartDate: new Date(),
+        subscriptionStartDate: now,
+        subscriptionEndDate: subscriptionEndDate,
         lastPaymentSessionId: sessionId,
-        lastUpdated: new Date(),
+        lastUpdated: now,
+        // Clear trial data when moving to paid plan
         trialEndDate: null,
+        trialStartDate: null,
       });
 
       console.log("Gold plan activated successfully");
@@ -346,7 +353,7 @@ const Profile = () => {
       // Update local state
       setSubscriptionPlan("Gold");
       toast.success(
-        "🌟 Welcome to the Gold Plan! Your premium features are now active."
+        "🌟 Welcome to Gold Plan! Your premium features are now active."
       );
 
       // Refresh user data
@@ -367,17 +374,18 @@ const Profile = () => {
   // Handle activation on mount and URL changes
   useEffect(() => {
     const handleActivation = async () => {
-      const params = new URLSearchParams(location.search);
+      const params = new URLSearchParams(window.location.search);
       const sessionId = params.get("session_id");
+      const success = params.get("success");
 
-      if (location.pathname === "/account/activate" && sessionId) {
-        console.log("Found activation parameters:", { sessionId });
+      if (success === "true" && sessionId) {
+        console.log("Found successful payment with session ID:", sessionId);
         await activateGoldPlan(sessionId);
       }
     };
 
     handleActivation();
-  }, [location]);
+  }, [location.search]); // Changed dependency to location.search
 
   // Add helper function to calculate trial end date (1 week)
   const calculateTrialEndDate = (startDate) => {
@@ -418,7 +426,7 @@ const Profile = () => {
     }
   };
 
-  // Add function to handle premium upgrade
+  // Update handlePremiumUpgrade function
   const handlePremiumUpgrade = async () => {
     try {
       const currentUser = auth.currentUser;
@@ -428,9 +436,13 @@ const Profile = () => {
         return;
       }
 
-      // Redirect to Stripe payment
-      const paymentUrl = `https://buy.stripe.com/test_14k14BbYP3iQfPa4gg`;
-      window.location.href = paymentUrl;
+      // Save current state before redirect
+      localStorage.setItem("pendingUpgrade", "true");
+      localStorage.setItem("upgradeStartTime", new Date().toISOString());
+
+      // Redirect to Stripe checkout
+      const stripeCheckoutUrl = `https://buy.stripe.com/test_14k14BbYP3iQfPa4gg?client_reference_id=${currentUser.uid}`;
+      window.location.href = stripeCheckoutUrl;
       toast.info("Redirecting to secure payment...");
     } catch (error) {
       console.error("Error initiating upgrade:", error);
@@ -474,59 +486,28 @@ const Profile = () => {
     return date;
   };
 
-  // Update the checkPaymentStatus function
+  // Update checkPaymentStatus to handle Stripe success
   const checkPaymentStatus = async () => {
     const pendingUpgrade = localStorage.getItem("pendingUpgrade");
     const upgradeStartTime = localStorage.getItem("upgradeStartTime");
 
     if (pendingUpgrade === "true" && upgradeStartTime) {
+      // Clear pending upgrade data
       localStorage.removeItem("pendingUpgrade");
       localStorage.removeItem("upgradeStartTime");
 
-      try {
-        const currentUser = auth.currentUser;
-        if (!currentUser) return;
+      const params = new URLSearchParams(window.location.search);
+      const success = params.get("success");
+      const sessionId = params.get("session_id");
 
-        const userRef = doc(db, "Users", currentUser.uid);
-
-        // Calculate dates
-        const startDate = new Date();
-        const endDate = calculateExpiryDate(startDate);
-
-        // Update Firestore with the dates
-        await updateDoc(userRef, {
-          subscriptionPlan: "Gold",
-          subscriptionStatus: "active",
-          subscriptionStartDate: startDate,
-          subscriptionEndDate: endDate,
-          lastUpdated: startDate,
-        });
-
-        console.log("Subscription dates:", {
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-        });
-
-        setSubscriptionPlan("Gold");
-        toast.success(
-          `🌟 Welcome to the Gold Plan! Active until ${endDate.toLocaleDateString("en-IN")}`
-        );
-        await fetchUserData();
-      } catch (error) {
-        console.error("Error activating subscription:", error);
-        toast.error(
-          "There was an issue activating your subscription. Please contact support."
-        );
+      if (success === "true" && sessionId) {
+        await activateGoldPlan(sessionId);
       }
     }
   };
 
-  // Check payment status on component mount and when returning to the page
+  // Check payment status on visibility change
   useEffect(() => {
-    if (document.visibilityState === "visible") {
-      checkPaymentStatus();
-    }
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         checkPaymentStatus();
@@ -534,6 +515,8 @@ const Profile = () => {
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    checkPaymentStatus(); // Check on mount
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
@@ -565,10 +548,29 @@ const Profile = () => {
 
         if (docSnap.exists()) {
           const userData = docSnap.data();
-          console.log("User subscription status:", userData.subscriptionPlan);
+          console.log("User subscription status:", userData.subscriptionStatus);
           setUserDetails(userData);
-          setSubscriptionPlan(userData.subscriptionPlan || "Free");
-          await checkTrialStatus(userData);
+
+          // Update subscription plan based on status
+          if (userData.subscriptionStatus === "active") {
+            setSubscriptionPlan("Gold");
+          } else if (userData.subscriptionStatus === "trial") {
+            if (userData.trialEndDate?.toDate() > new Date()) {
+              setSubscriptionPlan("Gold");
+            } else {
+              // Trial has expired
+              await updateDoc(docRef, {
+                subscriptionPlan: "Free",
+                subscriptionStatus: "inactive",
+                trialEndDate: null,
+                trialStartDate: null,
+              });
+              setSubscriptionPlan("Free");
+              toast.info("Your trial period has ended.");
+            }
+          } else {
+            setSubscriptionPlan("Free");
+          }
         } else {
           console.log("No user document found");
           navigate("/login");
@@ -1130,8 +1132,8 @@ const Profile = () => {
                     )}
 
                     {subscriptionPlan === "Gold" &&
-                      userDetails.subscriptionStatus === "trial" && (
-                        <div className="space-y-8">
+                      userDetails?.subscriptionStatus === "trial" && (
+                        <div className="space-y-8 mt-12">
                           <div className="text-center">
                             <div className="inline-flex items-center px-4 py-2 bg-yellow-400/20 rounded-full font-semibold backdrop-blur-sm">
                               <svg
@@ -1231,14 +1233,14 @@ const Profile = () => {
                               Upgrade to Premium
                             </button>
                             <p className="text-center text-sm text-gray-500">
-                              Monthly plan • Cancel anytime
+                              Monthly plan
                             </p>
                           </div>
                         </div>
                       )}
 
                     {subscriptionPlan === "Gold" &&
-                      userDetails.subscriptionStatus === "active" && (
+                      userDetails?.subscriptionStatus === "active" && (
                         <div className="space-y-8">
                           <div className="text-center">
                             <div className="inline-flex items-center px-4 py-2 bg-yellow-400/20 rounded-full font-semibold backdrop-blur-sm">
@@ -1253,7 +1255,7 @@ const Profile = () => {
                                   clipRule="evenodd"
                                 />
                               </svg>
-                              GOLD MEMBER
+                              PREMIUM ACTIVE
                             </div>
 
                             <h3 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-amber-600 mb-6">
@@ -1611,7 +1613,7 @@ const Profile = () => {
                     >
                       <path
                         fillRule="evenodd"
-                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 002 0V6a1 1 0 00-1-1z"
                         clipRule="evenodd"
                       />
                     </svg>
