@@ -419,50 +419,6 @@ const Prediction = () => {
           toast.success("✅ Low churn risk predicted.");
         }
       }
-
-      // Step 7: Save prediction to Firestore
-      const userRef = doc(db, "Users", user.uid);
-      const userDoc = await getDoc(userRef);
-
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const isAutoSaveEnabled =
-          userData.subscriptionPlan === "Free" || userData.autoSaveEnabled;
-
-        // Only save if user is Free or has auto-save enabled
-        if (isAutoSaveEnabled) {
-          try {
-            const predictionsRef = collection(
-              db,
-              "Users",
-              user.uid,
-              "predictions"
-            );
-            const predictionDoc = {
-              timestamp: serverTimestamp(),
-              formData: submissionData,
-              prediction: formattedPrediction.prediction,
-              churn_probability: formattedPrediction.churn_probability,
-              stay_probability: formattedPrediction.stay_probability,
-              prediction_label: formattedPrediction.prediction_label,
-              risk_factors: formattedPrediction.risk_factors,
-              confidence_score: formattedPrediction.confidence_score,
-              customerID: submissionData.CustomerID,
-              date: new Date().toISOString(),
-              autoSaved: true,
-            };
-
-            await addDoc(predictionsRef, predictionDoc);
-            // Only show toast for Free users when auto-saving
-            if (userData.subscriptionPlan === "Free") {
-              toast.success("Prediction saved to history!");
-            }
-          } catch (saveError) {
-            console.error("Error saving prediction:", saveError);
-            toast.error(`Failed to save prediction: ${saveError.message}`);
-          }
-        }
-      }
     } catch (err) {
       console.error("Prediction error:", err);
       setError(err.message);
