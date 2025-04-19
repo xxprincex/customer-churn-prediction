@@ -204,7 +204,7 @@ const CountdownRing = ({ days, total = 7 }) => {
   );
 };
 
-// Update the Tooltip component styling
+// Update the Tooltip component with better positioning
 const Tooltip = ({ children, content }) => {
   const [show, setShow] = useState(false);
   const timeoutRef = useRef(null);
@@ -223,20 +223,24 @@ const Tooltip = ({ children, content }) => {
   };
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-flex">
       <div
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="inline-block"
+        className="relative"
       >
         {children}
+        {show && (
+          <div className="absolute z-[100] left-1/2 -translate-x-1/2 bottom-full mb-2">
+            <div className="relative bg-white px-4 py-2 text-sm rounded-lg shadow-lg border border-gray-200 whitespace-nowrap">
+              {content}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <div className="border-8 border-transparent border-t-white"></div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-      {show && (
-        <div className="absolute z-50 px-4 py-2 text-sm bg-white rounded-lg shadow-lg -top-12 left-1/2 transform -translate-x-1/2 whitespace-nowrap border border-gray-200">
-          {content}
-          <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-2 h-2 bg-white border-r border-b border-gray-200"></div>
-        </div>
-      )}
     </div>
   );
 };
