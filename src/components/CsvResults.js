@@ -359,7 +359,7 @@ const CsvResults = ({ results, fileName }) => {
       // Split predictions into chunks of 100
       const chunkSize = 100;
       const chunks = [];
-      for (let i = 0; results.predictions.length; i += chunkSize) {
+      for (let i = 0; i < results.predictions.length; i += chunkSize) {
         chunks.push(results.predictions.slice(i, i + chunkSize));
       }
 
@@ -1528,7 +1528,6 @@ const CsvResults = ({ results, fileName }) => {
           <Bar data={probabilityDistributionData} options={barChartOptions} />
         </div>
       </div>
-
 
       {/* Risk Factors Analysis */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
