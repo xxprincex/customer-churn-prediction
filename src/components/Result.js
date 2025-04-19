@@ -410,38 +410,40 @@ const Result = ({ prediction, formData, error }) => {
   const { positiveIndicators, negativeIndicators } = getIndicators(formData);
   const recommendations = getRecommendations(prediction, formData);
 
-  const renderSaveButton = () => {
-    // Only show save button for Gold/Premium users with autoSave disabled
-    if (userType === "Free" || autoSaveEnabled || isSaved) return null;
-
-    return (
-      <div className="mt-6 flex justify-center">
-        <button
-          onClick={() => handleSaveResult(false)} // Pass false to indicate manual save
-          disabled={isSaving}
-          className={`px-6 py-2 rounded-full text-white font-medium transition-all duration-300 ${
-            isSaving
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-[#1d5a7b] hover:bg-[#164e68] hover:shadow-lg transform hover:scale-105"
-          }`}
-        >
-          {isSaving ? (
-            <div className="flex items-center">
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-              Saving...
-            </div>
-          ) : (
-            "Save Prediction"
-          )}
-        </button>
-      </div>
-    );
-  };
-
   return (
     <div className="mt-8 p-6 bg-white rounded-lg shadow-lg">
       {/* Prediction Header */}
-      <div className="flex flex-col items-center justify-center mb-6">
+      <div className="flex flex-col items-center justify-center mb-6 relative">
+        {/* Customer ID and Save Button Container - Right side */}
+        <div className="absolute top-0 right-0 flex items-center gap-4">
+          <div className="text-gray-600 bg-gray-100 px-4 py-2 rounded-full">
+            <span className="text-sm font-medium">Customer ID: </span>
+            <span className="text-sm font-bold">{formData.CustomerID}</span>
+          </div>
+
+          {/* Save Button */}
+          {userType !== "Free" && !autoSaveEnabled && !isSaved && (
+            <button
+              onClick={() => handleSaveResult(false)}
+              disabled={isSaving}
+              className={`px-6 py-2 rounded-full text-white font-medium transition-all duration-300 ${
+                isSaving
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-[#1d5a7b] hover:bg-[#164e68] hover:shadow-lg transform hover:scale-105"
+              }`}
+            >
+              {isSaving ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                  Saving...
+                </div>
+              ) : (
+                "Save Prediction"
+              )}
+            </button>
+          )}
+        </div>
+
         <div
           className={`text-5xl mb-4 ${willChurn ? "text-red-500" : "text-green-500"}`}
         >
@@ -529,8 +531,6 @@ const Result = ({ prediction, formData, error }) => {
           </div>
         </div>
       </div>
-
-      {renderSaveButton()}
     </div>
   );
 };
