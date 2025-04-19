@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaDownload,
@@ -7,6 +7,16 @@ import {
   FaChevronUp,
   FaChevronDown,
 } from "react-icons/fa";
+import { toast } from "react-toastify";
+import { auth, db } from "../firebase"; // Fix the import path
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  doc,
+  getDoc,
+  writeBatch,
+} from "firebase/firestore";
 
 // Constants for pagination
 const ITEMS_PER_PAGE = 50;
@@ -55,7 +65,22 @@ const CsvResults = ({ results, fileName }) => {
   const [showHighRiskList, setShowHighRiskList] = useState(false);
   const [showMediumRiskList, setShowMediumRiskList] = useState(false);
   const [showLowRiskList, setShowLowRiskList] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saveTimeout, setSaveTimeout] = useState(null);
   const navigate = useNavigate();
+
+  // Extract predictions from results prop
+  const predictions = useMemo(() => {
+    if (
+      !results ||
+      !results.predictions ||
+      !Array.isArray(results.predictions)
+    ) {
+      return [];
+    }
+    return results.predictions;
+  }, [results]);
 
   // Error handling for missing or invalid results
   if (!results || !results.predictions || !Array.isArray(results.predictions)) {
@@ -80,7 +105,6 @@ const CsvResults = ({ results, fileName }) => {
 
   // Memoized data processing
   const {
-    predictions,
     totalRecords,
     highRiskCustomers,
     mediumRiskCustomers,
@@ -92,21 +116,19 @@ const CsvResults = ({ results, fileName }) => {
     retentionRateTarget,
     actionPriorityScore,
   } = useMemo(() => {
-    const preds = results.predictions;
-    const total = preds.length;
+    const total = predictions.length;
 
-    const highRisk = preds.filter((p) => p.churnProbability > 0.7);
-    const mediumRisk = preds.filter(
+    const highRisk = predictions.filter((p) => p.churnProbability > 0.7);
+    const mediumRisk = predictions.filter(
       (p) => p.churnProbability > 0.3 && p.churnProbability <= 0.7
     );
-    const lowRisk = preds.filter((p) => p.churnProbability <= 0.3);
+    const lowRisk = predictions.filter((p) => p.churnProbability <= 0.3);
 
-    const churn = preds.filter((p) => p.prediction === 1).length;
+    const churn = predictions.filter((p) => p.prediction === 1).length;
     const stay = total - churn;
     const churnPct = ((churn / total) * 100).toFixed(1);
 
     return {
-      predictions: preds,
       totalRecords: total,
       highRiskCustomers: highRisk,
       mediumRiskCustomers: mediumRisk,
@@ -126,7 +148,7 @@ const CsvResults = ({ results, fileName }) => {
         )
       ),
     };
-  }, [results.predictions]);
+  }, [predictions]);
 
   // Memoized sorted data
   const sortedData = useMemo(() => {
@@ -219,6 +241,210 @@ const CsvResults = ({ results, fileName }) => {
     a.click();
     document.body.removeChild(a);
   }, [predictions, fileName]);
+
+  const handleSaveBatchResults = async () => {
+    if (isSaving) {
+      return;
+    }
+
+    if (isSaved) {
+      toast.info("Results already saved!");
+      return;
+    }
+
+    setIsSaving(true);
+
+    const timeout = setTimeout(() => {
+      setIsSaving(false);
+      toast.error("Save operation timed out. Please try again.");
+    }, 30000);
+    setSaveTimeout(timeout);
+
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("Please sign in to save batch predictions");
+      }
+
+      if (!results?.predictions?.length) {
+        throw new Error("No prediction results to save");
+      }
+
+      const userRef = doc(db, "Users", user.uid);
+      const userDoc = await getDoc(userRef);
+
+      if (!userDoc.exists()) {
+        throw new Error("User profile not found");
+      }
+
+      const userData = userDoc.data();
+      if (userData.subscriptionPlan !== "Gold" && !userData.trialActive) {
+        throw new Error("Batch predictions are only available for Gold users");
+      }
+
+      // Create main batch document
+      const mainBatchDoc = {
+        timestamp: serverTimestamp(),
+        fileName: fileName || "batch_predictions.csv",
+        totalRecords: results.predictions.length,
+        summary: {
+          churnCount: results.predictions.filter((p) => p.prediction === 1)
+            .length,
+          stayCount: results.predictions.filter((p) => p.prediction === 0)
+            .length,
+          churnPercentage: (
+            (results.predictions.filter((p) => p.prediction === 1).length /
+              results.predictions.length) *
+            100
+          ).toFixed(1),
+          highRiskCount: results.predictions.filter(
+            (p) => p.churnProbability > 0.7
+          ).length,
+          mediumRiskCount: results.predictions.filter(
+            (p) => p.churnProbability > 0.3 && p.churnProbability <= 0.7
+          ).length,
+          lowRiskCount: results.predictions.filter(
+            (p) => p.churnProbability <= 0.3
+          ).length,
+          customerHealthScore: (
+            (results.predictions.filter((p) => p.churnProbability <= 0.3)
+              .length /
+              results.predictions.length) *
+            100
+          ).toFixed(1),
+          actionPriorityScore: Math.min(
+            100,
+            Math.round(
+              (results.predictions.filter((p) => p.churnProbability > 0.7)
+                .length /
+                results.predictions.length) *
+                100
+            )
+          ),
+        },
+        date: new Date().toISOString(),
+        status: "completed",
+        savedBy: user.email,
+        saveTimestamp: new Date().toISOString(),
+      };
+
+      // Save main batch document
+      const batchPredictionsRef = collection(
+        db,
+        "Users",
+        user.uid,
+        "batchPredictions"
+      );
+      const mainDocRef = await addDoc(batchPredictionsRef, mainBatchDoc);
+
+      // Split predictions into chunks of 100
+      const chunkSize = 100;
+      const chunks = [];
+      for (let i = 0; i < results.predictions.length; i += chunkSize) {
+        chunks.push(results.predictions.slice(i, i + chunkSize));
+      }
+
+      // Save chunks using batched writes
+      for (let i = 0; i < chunks.length; i++) {
+        const batch = writeBatch(db);
+        const chunkRef = doc(
+          collection(
+            db,
+            "Users",
+            user.uid,
+            "batchPredictions",
+            mainDocRef.id,
+            "chunks"
+          )
+        );
+
+        batch.set(chunkRef, {
+          chunkIndex: i,
+          predictions: chunks[i].map((pred) => ({
+            customerID: pred.customerID || "",
+            prediction: pred.prediction || 0,
+            churnProbability: pred.churnProbability || 0,
+            prediction_label: pred.prediction_label || "",
+            risk_factors: Array.isArray(pred.risk_factors)
+              ? pred.risk_factors
+              : [],
+            confidence_score: pred.confidence_score || 0,
+            // Only save essential form data to reduce size
+            formData: {
+              CustomerID: pred.formData?.CustomerID,
+              Tenure: pred.formData?.Tenure,
+              OrderCount: pred.formData?.OrderCount,
+              SatisfactionScore: pred.formData?.SatisfactionScore,
+            },
+          })),
+        });
+
+        await batch.commit();
+      }
+
+      clearTimeout(timeout);
+      setSaveTimeout(null);
+      setIsSaved(true);
+      setIsSaving(false);
+      toast.success("Batch predictions saved successfully!");
+    } catch (error) {
+      console.error("Error saving batch predictions:", error);
+      clearTimeout(timeout);
+      setSaveTimeout(null);
+      setIsSaving(false);
+      toast.error(error.message || "Failed to save batch predictions");
+    }
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
+      }
+    };
+  }, [saveTimeout]);
+
+  // Add this to your existing buttons section
+  const renderSaveButton = () => {
+    if (isSaved) return null;
+
+    return (
+      <button
+        onClick={handleSaveBatchResults}
+        disabled={isSaving}
+        className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm text-white ${
+          isSaving
+            ? "bg-gray-400 cursor-not-allowed"
+            : "bg-[#1d5a7b] hover:bg-[#164e68]"
+        } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1d5a7b]`}
+      >
+        {isSaving ? (
+          <>
+            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+            Saving...
+          </>
+        ) : (
+          <>
+            <svg
+              className="w-4 h-4 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+              />
+            </svg>
+            Save Batch Results
+          </>
+        )}
+      </button>
+    );
+  };
 
   // Render functions
   const renderHighRiskList = () => (
@@ -2079,6 +2305,7 @@ const CsvResults = ({ results, fileName }) => {
             Prediction Results
           </h2>
           <div className="flex space-x-2">
+            {renderSaveButton()}
             <button
               onClick={handleDownloadCSV}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-full shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
