@@ -258,6 +258,7 @@ const CsvUpload = () => {
       try {
         const user = auth.currentUser;
         if (!user) {
+          setHasAccess(false);
           navigate("/login");
           return;
         }
@@ -267,31 +268,37 @@ const CsvUpload = () => {
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
+          // Only allow access if user has Gold subscription and valid trial/subscription
           if (userData.subscriptionPlan === "Gold") {
-            // Check if it's a trial and if it's still valid
-            if (userData.trialEndDate) {
-              const trialEnd = userData.trialEndDate.toDate();
-              if (trialEnd > new Date()) {
+            if (userData.subscriptionStatus === "trial") {
+              const trialEnd = userData.trialEndDate?.toDate();
+              if (trialEnd && trialEnd > new Date()) {
                 setHasAccess(true);
               } else {
-                toast.error(
-                  "Your trial period has ended. Please wait for the full version."
-                );
+                setHasAccess(false);
+                toast.error("Your trial has expired. Please upgrade to continue using batch predictions.");
                 navigate("/account");
               }
-            } else {
+            } else if (userData.subscriptionStatus === "active") {
               setHasAccess(true);
+            } else {
+              setHasAccess(false);
+              toast.error("Please upgrade to Gold plan to use batch predictions.");
+              navigate("/account");
             }
           } else {
-            toast.error("You need Gold access to use CSV uploads");
+            setHasAccess(false);
+            toast.error("Batch predictions are only available for Gold subscribers.");
             navigate("/account");
           }
         } else {
+          setHasAccess(false);
           toast.error("User profile not found");
           navigate("/login");
         }
       } catch (error) {
         console.error("Error checking access:", error);
+        setHasAccess(false);
         toast.error("Error checking access status");
       } finally {
         setIsCheckingAccess(false);

@@ -332,6 +332,14 @@ const Profile = () => {
         return;
       }
 
+      const userData = userDoc.data();
+      if (userData.subscriptionPlan !== "Gold") {
+        toast.error(
+          "Auto-save settings are only available for Gold subscribers"
+        );
+        return;
+      }
+
       const newAutoSaveValue = !autoSaveEnabled;
 
       await updateDoc(userRef, {
@@ -1228,27 +1236,29 @@ const Profile = () => {
                       </button>
 
                       <div className="flex items-center gap-4">
-                        <Tooltip content="Choose to automatically save all prediction results">
-                          <button
-                            onClick={handleAutoSaveToggle}
-                            className={`${autoSaveEnabled ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-700"} text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105`}
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                        {userDetails?.subscriptionPlan === "Gold" && (
+                          <Tooltip content="Choose to automatically save all prediction results">
+                            <button
+                              onClick={handleAutoSaveToggle}
+                              className={`${autoSaveEnabled ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-700"} text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105`}
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                            Auto-save {autoSaveEnabled ? "ON" : "OFF"}
-                          </button>
-                        </Tooltip>
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                              Auto-save {autoSaveEnabled ? "ON" : "OFF"}
+                            </button>
+                          </Tooltip>
+                        )}
                         <button
                           onClick={() => setShowDeleteConfirm(true)}
                           className="bg-red-600 hover:bg-red-700 text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
@@ -1627,12 +1637,23 @@ const Profile = () => {
                         Single Predictions
                       </button>
                       <button
-                        onClick={() => setShowBatchHistory(true)}
+                        onClick={() => {
+                          if (subscriptionPlan === "Gold") {
+                            setShowBatchHistory(true);
+                          } else {
+                            toast.error(
+                              "Batch predictions are only available for Gold subscribers"
+                            );
+                          }
+                        }}
                         className={`px-4 py-2 rounded-lg transition-all duration-200 ${
                           showBatchHistory
                             ? "bg-[#1d5a7b] text-white shadow-lg"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                            : subscriptionPlan === "Gold"
+                              ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              : "bg-gray-100 text-gray-400 cursor-not-allowed"
                         }`}
+                        disabled={subscriptionPlan !== "Gold"}
                       >
                         Batch Predictions
                       </button>

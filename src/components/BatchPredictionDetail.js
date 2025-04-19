@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { auth, db } from "./firebase";
 import {
   collection,
@@ -16,6 +16,7 @@ import {
   FaChevronDown,
   FaCheckCircle,
 } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 // Constants for pagination
 const ITEMS_PER_PAGE = 50;
@@ -1005,12 +1006,136 @@ const ChartsView = ({ data }) => {
 };
 
 const BatchPredictionDetail = () => {
-  const { id } = useParams();
+  const [userSubscription, setUserSubscription] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Check user's subscription status
+  useEffect(() => {
+    const checkSubscription = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          navigate("/login");
+          return;
+        }
+
+        const userRef = doc(db, "Users", user.uid);
+        const userDoc = await getDoc(userRef);
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserSubscription(userData.subscriptionPlan);
+        }
+      } catch (error) {
+        console.error("Error checking subscription:", error);
+        toast.error("Error checking subscription status");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkSubscription();
+  }, [navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+      </div>
+    );
+  }
+
+  if (userSubscription !== "Gold") {
+    return (
+      <div className="p-8 text-center">
+        <div className="mb-6">
+          <FaCheckCircle className="text-6xl text-[#1d5a7b] mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Gold Subscription Required
+          </h2>
+          <p className="text-gray-600 mb-6">
+            This feature is exclusively available for Gold subscribers.
+          </p>
+          <button
+            onClick={() => navigate("/account")}
+            className="bg-[#1d5a7b] text-white px-6 py-2 rounded-md hover:bg-[#164e68] transition-colors"
+          >
+            Upgrade to Gold
+          </button>
+        </div>
+      </div>
+    );
+  }
+  const [hasAccess, setHasAccess] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+  const { id } = useParams();
+  // Removed duplicate 'const navigate = useNavigate();' declaration here
   const [loading, setLoading] = useState(true);
   const [batchData, setBatchData] = useState(null);
   const [chunks, setChunks] = useState([]);
   const [viewMode, setViewMode] = useState("summary");
+
+  useEffect(() => {
+    const checkAccess = async () => {
+      setIsCheckingAccess(true);
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          setHasAccess(false);
+          navigate("/login");
+          return;
+        }
+
+        const userDocRef = doc(db, "Users", user.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          if (userData.subscriptionPlan === "Gold") {
+            if (userData.subscriptionStatus === "trial") {
+              const trialEnd = userData.trialEndDate?.toDate();
+              if (trialEnd && trialEnd > new Date()) {
+                setHasAccess(true);
+              } else {
+                setHasAccess(false);
+                toast.error(
+                  "Your trial has expired. Please upgrade to continue viewing batch predictions."
+                );
+                navigate("/account");
+              }
+            } else if (userData.subscriptionStatus === "active") {
+              setHasAccess(true);
+            } else {
+              setHasAccess(false);
+              toast.error(
+                "Please upgrade to Gold plan to view batch predictions."
+              );
+              navigate("/account");
+            }
+          } else {
+            setHasAccess(false);
+            toast.error(
+              "Batch predictions are only available for Gold subscribers."
+            );
+            navigate("/account");
+          }
+        } else {
+          setHasAccess(false);
+          toast.error("User profile not found");
+          navigate("/login");
+        }
+      } catch (error) {
+        console.error("Error checking access:", error);
+        setHasAccess(false);
+        toast.error("Error checking access status");
+      } finally {
+        setIsCheckingAccess(false);
+      }
+    };
+
+    checkAccess();
+  }, [navigate]);
 
   useEffect(() => {
     const fetchBatchDetails = async () => {
@@ -1092,10 +1217,37 @@ const BatchPredictionDetail = () => {
     document.body.removeChild(a);
   }, [chunks, id]);
 
-  if (loading) {
+  if (loading || isCheckingAccess) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+      <div className="min-h-screen pt-48 flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+        <p className="mt-4 text-lg text-gray-600">
+          {isCheckingAccess
+            ? "Checking access status..."
+            : "Loading prediction details..."}
+        </p>
+      </div>
+    );
+  }
+
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen pt-48 flex flex-col items-center justify-center px-4">
+        <div className="bg-white shadow-xl rounded-lg p-8 max-w-md w-full text-center">
+          <FaCrown className="text-yellow-500 text-6xl mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-[#1d5a7b] mb-4">
+            Gold Subscription Required
+          </h2>
+          <p className="text-gray-600 mb-6">
+            You need a Gold subscription to access batch prediction history.
+          </p>
+          <button
+            onClick={() => navigate("/subscription-plans")}
+            className="bg-[#1d5a7b] text-white rounded-md py-2 px-6 font-medium hover:bg-[#164e68] transition-colors"
+          >
+            View Subscription Plans
+          </button>
+        </div>
       </div>
     );
   }
