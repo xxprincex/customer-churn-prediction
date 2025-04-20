@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
+STRIPE_ENDPOINT_SECRET = os.getenv("STRIPE_ENDPOINT_SECRET")
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -27,7 +28,7 @@ db = firestore.client()
 
 # Initialize Stripe
 stripe.api_key = STRIPE_API_KEY
-endpoint_secret = 'whsec_ce4b8397c2c3d24c76a99efe96296cd8e12892f5b067149c932274e27877862b'
+endpoint_secret = STRIPE_ENDPOINT_SECRET
 
 # Load the trained model
 with open('model_classifier.pkl', 'rb') as f:
