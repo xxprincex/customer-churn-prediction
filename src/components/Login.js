@@ -100,7 +100,6 @@ const Login = () => {
     } catch (error) {
       if (error.code === "auth/user-not-found") {
         setError("No account registered with this email. Register now!");
-        toast.error("No account registered with this email. Register now!");
       } else if (
         error.code === "auth/wrong-password" ||
         error.code === "auth/invalid-credential"
