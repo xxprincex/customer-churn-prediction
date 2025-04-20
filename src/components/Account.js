@@ -655,6 +655,30 @@ const Profile = () => {
     }
   }, [location.search, location.hash]); // Run when URL parameters or hash change
 
+  // Add this useEffect to always fetch user data after payment success and show loading spinner until plan is updated
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get("success");
+    if (success === "true") {
+      setIsLoading(true);
+      const interval = setInterval(async () => {
+        await fetchUserData();
+        // If user is now gold, stop polling and remove ?success from URL
+        if (userDetails?.subscriptionPlan === "gold") {
+          setIsLoading(false);
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
+          clearInterval(interval);
+        }
+      }, 2000); // Poll every 2 seconds
+      // Cleanup
+      return () => clearInterval(interval);
+    }
+  }, [window.location.search, userDetails?.subscriptionPlan]);
+
   // Update fetchUserData to set a default subscriptionPlan ('free') if missing
   const fetchUserData = async () => {
     try {
@@ -876,9 +900,12 @@ const Profile = () => {
     }
   }, [showDeleteConfirm]);
 
-  // Add the hasGoldAccess function before the return statement
-  const hasGoldAccess = () => {
-    return userDetails?.subscriptionPlan === "gold";
+  // Add the hasPremiumAccess function before the return statement
+  const hasPremiumAccess = () => {
+    return (
+      userDetails?.subscriptionPlan === "gold" ||
+      userDetails?.subscriptionPlan === "trial"
+    );
   };
 
   // Add the clearDateFilter function before the return statement
@@ -1103,7 +1130,7 @@ const Profile = () => {
                         </h3>
                         <div className="h-1 w-12 bg-[#1d5a7b] rounded"></div>
                       </div>
-                      {!isLoading && hasGoldAccess() && (
+                      {!isLoading && hasPremiumAccess() && (
                         <div className="gold-member-badge transform hover:scale-105 transition-all">
                           <div className="flex items-center gap-2 px-4 py-2 bg-yellow-100 rounded-full">
                             <svg
@@ -1118,7 +1145,7 @@ const Profile = () => {
                               />
                             </svg>
                             <span className="text-yellow-800 font-semibold">
-                              GOLD MEMBER
+                              PREMIUM MEMBER
                             </span>
                           </div>
                         </div>
@@ -1294,7 +1321,7 @@ const Profile = () => {
                       </button>
 
                       <div className="flex items-center gap-4">
-                        {userDetails?.subscriptionPlan === "gold" && (
+                        {hasPremiumAccess() && (
                           <Tooltip content="Choose to automatically save all prediction results">
                             <button
                               onClick={handleAutoSaveToggle}
@@ -1642,22 +1669,22 @@ const Profile = () => {
                       </button>
                       <button
                         onClick={() => {
-                          if (userDetails?.subscriptionPlan === "gold") {
+                          if (hasPremiumAccess()) {
                             setShowBatchHistory(true);
                           } else {
                             toast.error(
-                              "Batch predictions are only available for Gold subscribers"
+                              "Batch predictions are only available for Premium subscribers"
                             );
                           }
                         }}
                         className={`px-4 py-2 rounded-lg transition-all duration-200 ${
                           showBatchHistory
                             ? "bg-[#1d5a7b] text-white shadow-lg"
-                            : userDetails?.subscriptionPlan === "gold"
+                            : hasPremiumAccess()
                               ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
                               : "bg-gray-100 text-gray-400 cursor-not-allowed"
                         }`}
-                        disabled={userDetails?.subscriptionPlan !== "gold"}
+                        disabled={!hasPremiumAccess()}
                       >
                         Batch Predictions
                       </button>

@@ -11,6 +11,11 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import os
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
+
+STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -21,7 +26,7 @@ firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 # Initialize Stripe
-stripe.api_key = 'sk_test_51REVjd6QSAB9A7vjyUOo2i92Pkp2lFMidyx4YN35jBYtzB8JOTSvY4SEWIBs4PpRElAgWHPTd9k5V4CVbRkBcN1n004ac4oaNm'
+stripe.api_key = STRIPE_API_KEY
 endpoint_secret = 'whsec_ce4b8397c2c3d24c76a99efe96296cd8e12892f5b067149c932274e27877862b'
 
 # Load the trained model
