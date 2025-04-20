@@ -1369,50 +1369,160 @@ const Profile = () => {
 
                   {/* Right Panel - Plan Info */}
                   <div className="lg:w-1/3 p-8 lg:p-12 bg-gradient-to-br from-gray-50/50 via-white/50 to-gray-100/50 backdrop-blur-md border-l border-white/20">
-                    {userDetails?.subscriptionPlan === "free" &&
-                      !userDetails?.trialUsed && (
-                        <button
-                          onClick={startTrial}
-                          className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
-                        >
-                          <svg
-                            className="w-5 h-5 animate-pulse"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                    {userDetails?.subscriptionPlan === "free" && (
+                      <div className="bg-white/90 rounded-xl p-8 shadow-lg border border-gray-200">
+                        <h2 className="text-3xl font-bold text-center mb-2">
+                          Upgrade to Gold Plan
+                        </h2>
+
+                        <div className="bg-yellow-50 rounded-lg p-4 mb-6">
+                          <p className="text-center font-semibold text-yellow-800">
+                            Special Offer!
+                            <br />
+                            Try Premium Features Free for 1 Week
+                          </p>
+                        </div>
+
+                        <div className="text-center mb-6">
+                          <span className="text-4xl font-bold text-gray-900">
+                            ₹999
+                          </span>
+                          <span className="text-gray-600">/month</span>
+                        </div>
+
+                        <div className="space-y-6 mb-8">
+                          <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm">
+                            <div className="bg-yellow-100 p-2 rounded-full">
+                              <svg
+                                className="w-6 h-6 text-yellow-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                                />
+                              </svg>
+                            </div>
+                            <div>
+                              <h3 className="font-semibold">
+                                Unlimited Predictions
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                No restrictions on predictions
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm">
+                            <div className="bg-yellow-100 p-2 rounded-full">
+                              <svg
+                                className="w-6 h-6 text-yellow-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M16 2v4M8 2v4M4 9h16"
+                                />
+                              </svg>
+                            </div>
+                            <div>
+                              <h3 className="font-semibold">
+                                Batch Processing
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                Process multiple files at once
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm">
+                            <div className="bg-yellow-100 p-2 rounded-full">
+                              <svg
+                                className="w-6 h-6 text-yellow-600"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                            </div>
+                            <div>
+                              <h3 className="font-semibold">
+                                Priority Support
+                              </h3>
+                              <p className="text-sm text-gray-600">
+                                24/7 premium customer support
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {!userDetails?.trialUsed ? (
+                          <button
+                            onClick={startTrial}
+                            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white rounded-full py-4 px-8 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mb-4"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M13 10V3L4 14h7v7l9-11h-7z"
-                            />
-                          </svg>
-                          Start 1-Week Free Trial
-                        </button>
-                      )}
-                    {userDetails?.subscriptionPlan === "free" &&
-                      userDetails?.trialUsed && (
-                        <button
-                          onClick={handlePremiumUpgrade}
-                          className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2 mt-2"
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M13 10V3L4 14h7v7l9-11h-7z"
+                              />
+                            </svg>
+                            Start 1-Week Free Trial
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handlePremiumUpgrade}
+                            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white rounded-full py-4 px-8 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mb-4"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                            />
-                          </svg>
-                          Upgrade to Premium
-                        </button>
-                      )}
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                              />
+                            </svg>
+                            Upgrade to Premium
+                          </button>
+                        )}
+
+                        <p className="text-center text-sm text-gray-500">
+                          No credit card required.
+                        </p>
+                      </div>
+                    )}
                     {userDetails?.subscriptionPlan === "trial" && (
                       <>
                         <div className="space-y-8 mt-12">
