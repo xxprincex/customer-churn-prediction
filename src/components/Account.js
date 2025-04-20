@@ -907,16 +907,51 @@ const Profile = () => {
       const querySnapshot = await getDocs(q);
 
       const batchData = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
+      for (const docSnapshot of querySnapshot.docs) {
+        const data = docSnapshot.data();
+
+        // Get the summary from the main document
+        let summary = data.summary || {};
+
+        // If there's no summary in the main document, calculate it from chunks
+        if (!summary.highRisk && !summary.mediumRisk && !summary.lowRisk) {
+          const chunksRef = collection(docSnapshot.ref, "chunks");
+          const chunksSnapshot = await getDocs(chunksRef);
+
+          let predictions = [];
+          chunksSnapshot.forEach((chunkDoc) => {
+            const chunkData = chunkDoc.data();
+            if (chunkData.predictions && Array.isArray(chunkData.predictions)) {
+              predictions = predictions.concat(chunkData.predictions);
+            }
+          });
+
+          // Calculate summary from predictions
+          summary = predictions.reduce(
+            (acc, pred) => {
+              if (parseFloat(pred.churnProbability) > 0.7) acc.highRisk++;
+              else if (parseFloat(pred.churnProbability) > 0.3)
+                acc.mediumRisk++;
+              else acc.lowRisk++;
+              return acc;
+            },
+            { highRisk: 0, mediumRisk: 0, lowRisk: 0 }
+          );
+        }
+
         batchData.push({
-          id: doc.id,
+          id: docSnapshot.id,
           ...data,
+          summary: {
+            highRiskCount: summary.highRisk || 0,
+            mediumRiskCount: summary.mediumRisk || 0,
+            lowRiskCount: summary.lowRisk || 0,
+          },
           date: data.timestamp
             ? new Date(data.timestamp.toDate()).toLocaleString()
             : new Date(data.saveTimestamp).toLocaleString(),
         });
-      });
+      }
 
       setBatchPredictions(batchData);
     } catch (error) {
