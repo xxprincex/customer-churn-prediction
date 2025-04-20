@@ -19,6 +19,7 @@ import {
 } from "firebase/auth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
+import { loadStripe } from "@stripe/stripe-js";
 
 // Update the gold shine styles
 const goldShineStyles = `
@@ -414,43 +415,36 @@ const Profile = () => {
       console.log("Session ID:", sessionId);
 
       const userRef = doc(db, "Users", currentUser.uid);
-
-      // First, check if user document exists
       const userDoc = await getDoc(userRef);
+
       if (!userDoc.exists()) {
         throw new Error("User document not found");
       }
 
-      const now = new Date();
-      const subscriptionEndDate = new Date(now);
-      subscriptionEndDate.setMonth(now.getMonth() + 1); // Add 1 month
+      // Wait for webhook to update the subscription status
+      let attempts = 0;
+      const maxAttempts = 10;
 
-      // Update user document with subscription details
-      await updateDoc(userRef, {
-        subscriptionPlan: "Gold",
-        subscriptionStatus: "active",
-        subscriptionStartDate: now,
-        subscriptionEndDate: subscriptionEndDate,
-        lastPaymentSessionId: sessionId,
-        lastUpdated: now,
-        // Clear trial data when moving to paid plan
-        trialEndDate: null,
-        trialStartDate: null,
-      });
+      while (attempts < maxAttempts) {
+        const updatedDoc = await getDoc(userRef);
+        const userData = updatedDoc.data();
 
-      console.log("Gold plan activated successfully");
+        if (
+          userData.subscriptionStatus === "active" &&
+          userData.subscriptionPlan === "Gold"
+        ) {
+          setSubscriptionPlan("Gold");
+          toast.success(
+            "🌟 Welcome to Gold Plan! Your premium features are now active."
+          );
+          return;
+        }
 
-      // Update local state
-      setSubscriptionPlan("Gold");
-      toast.success(
-        "🌟 Welcome to Gold Plan! Your premium features are now active."
-      );
+        await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
+        attempts++;
+      }
 
-      // Refresh user data
-      await fetchUserData();
-
-      // Remove activation parameters from URL
-      window.history.replaceState({}, "", "/account");
+      throw new Error("Subscription status not updated after payment");
     } catch (error) {
       console.error("Error activating Gold plan:", error);
       toast.error(
@@ -485,38 +479,11 @@ const Profile = () => {
   };
 
   // Update handleUpgrade function for trial start
-  const handleUpgrade = async () => {
-    try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        toast.error("Please login to start your trial");
-        navigate("/login");
-        return;
-      }
-
-      // Start with 1-week trial
-      const now = new Date();
-      const trialEndDate = calculateTrialEndDate(now);
-
-      const userRef = doc(db, "Users", currentUser.uid);
-      await updateDoc(userRef, {
-        subscriptionPlan: "Gold",
-        subscriptionStatus: "trial",
-        trialStartDate: now,
-        trialEndDate: trialEndDate,
-        lastUpdated: now,
-      });
-
-      setSubscriptionPlan("Gold");
-      toast.success("🌟 Your 1-week free trial has started!");
-      await fetchUserData();
-    } catch (error) {
-      console.error("Error starting trial:", error);
-      toast.error("Could not start trial. Please try again.");
-    }
+  const handleUpgrade = () => {
+    // Redirect to Stripe payment link
+    window.location.href = process.env.REACT_APP_STRIPE_PAYMENT_LINK;
   };
 
-  // Update handlePremiumUpgrade function
   const handlePremiumUpgrade = async () => {
     try {
       const currentUser = auth.currentUser;
@@ -526,17 +493,15 @@ const Profile = () => {
         return;
       }
 
-      // Save current state before redirect
-      localStorage.setItem("pendingUpgrade", "true");
-      localStorage.setItem("upgradeStartTime", new Date().toISOString());
+      setIsProcessing(true);
 
-      // Redirect to Stripe checkout
-      const stripeCheckoutUrl = `https://buy.stripe.com/test_14k14BbYP3iQfPa4gg?client_reference_id=${currentUser.uid}`;
-      window.location.href = stripeCheckoutUrl;
-      toast.info("Redirecting to secure payment...");
+      // Redirect to Stripe payment link
+      window.location.href = process.env.REACT_APP_STRIPE_PAYMENT_LINK;
     } catch (error) {
       console.error("Error initiating upgrade:", error);
       toast.error("Could not process upgrade. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -576,40 +541,59 @@ const Profile = () => {
     return date;
   };
 
-  // Update checkPaymentStatus to handle Stripe success
+  // Update checkPaymentStatus to handle success without webhooks
   const checkPaymentStatus = async () => {
-    const pendingUpgrade = localStorage.getItem("pendingUpgrade");
-    const upgradeStartTime = localStorage.getItem("upgradeStartTime");
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
 
-    if (pendingUpgrade === "true" && upgradeStartTime) {
-      // Clear pending upgrade data
-      localStorage.removeItem("pendingUpgrade");
-      localStorage.removeItem("upgradeStartTime");
+      const userRef = doc(db, "Users", currentUser.uid);
+      const userDoc = await getDoc(userRef);
 
-      const params = new URLSearchParams(window.location.search);
-      const success = params.get("success");
-      const sessionId = params.get("session_id");
+      if (!userDoc.exists()) return;
 
-      if (success === "true" && sessionId) {
-        await activateGoldPlan(sessionId);
+      // If coming back from payment, update to premium
+      if (window.location.href.includes("buy.stripe.com")) {
+        // Update subscription status directly
+        const now = new Date();
+        const subscriptionEndDate = new Date(now);
+        subscriptionEndDate.setMonth(now.getMonth() + 1);
+
+        await updateDoc(userRef, {
+          subscriptionPlan: "Gold",
+          subscriptionStatus: "active",
+          subscriptionStartDate: now,
+          subscriptionEndDate: subscriptionEndDate,
+          lastUpdated: now,
+          trialEndDate: null,
+          trialStartDate: null,
+        });
+
+        // Update local state
+        setSubscriptionPlan("Gold");
+        toast.success(
+          "🌟 Welcome to Gold Plan! Your premium features are now active."
+        );
+
+        // Navigate back to account page
+        navigate("/account");
+
+        // Refresh user data
+        await fetchUserData();
       }
+    } catch (error) {
+      console.error("Error checking payment status:", error);
+      toast.error(
+        "There was an issue activating your subscription. Please contact support."
+      );
     }
   };
 
-  // Check payment status on visibility change
+  // Add this effect to check payment status on mount
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        checkPaymentStatus();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    checkPaymentStatus(); // Check on mount
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
+    if (window.location.href.includes("buy.stripe.com")) {
+      checkPaymentStatus();
+    }
   }, []);
 
   const checkTrialStatus = async (userData) => {

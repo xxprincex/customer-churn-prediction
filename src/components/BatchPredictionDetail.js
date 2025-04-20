@@ -141,8 +141,8 @@ const SummaryView = ({ data }) => {
           ))}
         </tbody>
       </table>
-    </div>
-  );
+      </div>
+    );
 
   const renderMediumRiskList = () => (
     <div className="mb-4 overflow-auto max-h-60 bg-white rounded border border-yellow-200 p-2">
@@ -176,8 +176,8 @@ const SummaryView = ({ data }) => {
           ))}
         </tbody>
       </table>
-    </div>
-  );
+      </div>
+    );
 
   const renderLowRiskList = () => (
     <div className="mb-4 overflow-auto max-h-60 bg-white rounded border border-green-200 p-2">
@@ -211,36 +211,36 @@ const SummaryView = ({ data }) => {
           ))}
         </tbody>
       </table>
-    </div>
-  );
+      </div>
+    );
 
   return (
     <div className="space-y-6">
-      {/* Company Overview Card */}
+          {/* Company Overview Card */}
       <div className="bg-gradient-to-r from-[#1d5a7b] to-[#2d7ba4] text-white p-6 rounded-lg shadow-md">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold flex items-center">
-            <svg
-              className="w-6 h-6 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-              />
-            </svg>
-            Company Overview
-          </h3>
-          <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold flex items-center">
+                <svg
+                  className="w-6 h-6 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
+                </svg>
+                Company Overview
+              </h3>
+              <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
             Last Updated: {new Date(batchData.timestamp).toLocaleDateString()}
-          </span>
-        </div>
+              </span>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Customer Base */}
           <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
             <h4 className="text-white/80 text-sm mb-1">Customer Base</h4>
@@ -253,7 +253,7 @@ const SummaryView = ({ data }) => {
                 Retention Rate
               </span>
             </div>
-          </div>
+              </div>
 
           {/* Risk Profile */}
           <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
@@ -261,16 +261,16 @@ const SummaryView = ({ data }) => {
             <p className="text-2xl font-bold">
               {(
                 (metrics.highRiskCustomers.length / metrics.totalRecords) *
-                100
-              ).toFixed(1)}
-              %
-            </p>
+                    100
+                  ).toFixed(1)}
+                  %
+                </p>
             <div className="mt-2 text-sm">
               <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-100">
                 High Risk Customers
               </span>
             </div>
-          </div>
+              </div>
 
           {/* Potential Impact */}
           <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
@@ -282,9 +282,9 @@ const SummaryView = ({ data }) => {
               <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-100">
                 Recoverable Customers
               </span>
+              </div>
             </div>
           </div>
-        </div>
 
         {/* Additional Metrics */}
         <div className="grid grid-cols-2 gap-6 mt-6">
@@ -294,70 +294,70 @@ const SummaryView = ({ data }) => {
               Customer Segment Distribution
             </h4>
             <div className="space-y-3">
-              <div>
+                  <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span>High Risk Customers</span>
-                  <span>
-                    {(
+                      <span>
+                        {(
                       (metrics.highRiskCustomers.length /
                         metrics.totalRecords) *
-                      100
-                    ).toFixed(1)}
-                    %
-                  </span>
-                </div>
+                          100
+                        ).toFixed(1)}
+                        %
+                      </span>
+                    </div>
                 <div className="w-full bg-red-200/20 rounded-full h-2">
-                  <div
+                      <div
                     className="bg-red-500 h-2 rounded-full"
-                    style={{
+                        style={{
                       width: `${(metrics.highRiskCustomers.length / metrics.totalRecords) * 100}%`,
-                    }}
-                  />
-                </div>
-              </div>
-              <div>
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span>Medium Risk Customers</span>
-                  <span>
-                    {(
+                      <span>
+                        {(
                       (metrics.mediumRiskCustomers.length /
                         metrics.totalRecords) *
-                      100
-                    ).toFixed(1)}
-                    %
-                  </span>
-                </div>
+                          100
+                        ).toFixed(1)}
+                        %
+                      </span>
+                    </div>
                 <div className="w-full bg-yellow-200/20 rounded-full h-2">
-                  <div
+                      <div
                     className="bg-yellow-500 h-2 rounded-full"
-                    style={{
+                        style={{
                       width: `${(metrics.mediumRiskCustomers.length / metrics.totalRecords) * 100}%`,
-                    }}
-                  />
-                </div>
-              </div>
-              <div>
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div>
                 <div className="flex justify-between text-sm mb-1">
                   <span>Low Risk Customers</span>
-                  <span>
-                    {(
+                      <span>
+                        {(
                       (metrics.lowRiskCustomers.length / metrics.totalRecords) *
-                      100
-                    ).toFixed(1)}
-                    %
-                  </span>
-                </div>
+                          100
+                        ).toFixed(1)}
+                        %
+                      </span>
+                    </div>
                 <div className="w-full bg-green-200/20 rounded-full h-2">
-                  <div
+                      <div
                     className="bg-green-500 h-2 rounded-full"
-                    style={{
+                        style={{
                       width: `${(metrics.lowRiskCustomers.length / metrics.totalRecords) * 100}%`,
-                    }}
-                  />
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
 
           {/* Key Performance Indicators */}
           <div className="bg-white/10 rounded-lg p-4">
@@ -387,8 +387,8 @@ const SummaryView = ({ data }) => {
                     </svg>
                   </div>
                 </div>
-              </div>
-              <div>
+                    </div>
+                    <div>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-sm">Retention Rate Target</span>
                   <div className="flex items-center">
@@ -468,7 +468,7 @@ const SummaryView = ({ data }) => {
               </span>
               <h4 className="text-lg font-medium text-gray-800">
                 Immediate Actions (24-48 hours)
-              </h4>
+                      </h4>
             </div>
             <div className="bg-red-50 rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
@@ -524,8 +524,8 @@ const SummaryView = ({ data }) => {
                 </li>
               </ul>
             </div>
-          </div>
-        </div>
+                    </div>
+                  </div>
 
         {/* Short-term Actions */}
         <div className="relative pl-6 mb-6">
@@ -538,7 +538,7 @@ const SummaryView = ({ data }) => {
               <h4 className="text-lg font-medium text-gray-800">
                 Short-term Actions (1-2 weeks)
               </h4>
-            </div>
+                    </div>
             <div className="bg-yellow-50 rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
@@ -572,7 +572,7 @@ const SummaryView = ({ data }) => {
                       d="M5 13l4 4L19 7"
                     />
                   </svg>
-                  <div>
+                    <div>
                     <p className="font-medium">
                       Engagement campaign for{" "}
                       {metrics.mediumRiskCustomers.length} at-risk customers:
@@ -582,25 +582,25 @@ const SummaryView = ({ data }) => {
                       <li>Offer product education and support sessions</li>
                       <li>Develop targeted promotional campaigns</li>
                     </ul>
-                  </div>
+                    </div>
                 </li>
               </ul>
-            </div>
-          </div>
+                  </div>
+                    </div>
         </div>
 
         {/* Long-term Strategy */}
         <div className="relative pl-6">
           <div className="absolute left-0 top-0 bottom-0 w-1 bg-green-500 rounded"></div>
-          <div>
+                    <div>
             <div className="flex items-center mb-2">
               <span className="w-8 h-8 rounded-full bg-green-100 text-green-600 mr-2 flex items-center justify-center text-sm">
                 1m
               </span>
               <h4 className="text-lg font-medium text-gray-800">
                 Long-term Strategy (1-3 months)
-              </h4>
-            </div>
+                      </h4>
+                    </div>
             <div className="bg-green-50 rounded-lg p-4">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
@@ -610,14 +610,14 @@ const SummaryView = ({ data }) => {
                   <span className="ml-2 text-sm text-green-600">
                     Maintain satisfaction
                   </span>
-                </div>
+                  </div>
                 <button
                   onClick={() => setShowLowRiskList(!showLowRiskList)}
                   className="text-green-600 hover:text-green-800"
                 >
                   {showLowRiskList ? "Hide List" : "Show List"}
                 </button>
-              </div>
+                </div>
               {showLowRiskList && renderLowRiskList()}
               <ul className="mt-3 space-y-2 text-sm text-gray-700">
                 <li className="flex items-start">
@@ -641,7 +641,7 @@ const SummaryView = ({ data }) => {
                       <li>Create exclusive member benefits</li>
                       <li>Develop referral incentives</li>
                     </ul>
-                  </div>
+              </div>
                 </li>
               </ul>
             </div>
@@ -706,80 +706,80 @@ const TableView = ({ data }) => {
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort("customerID")}
-                >
+                      >
                   <div className="flex items-center">
-                    Customer ID
-                    {sortField === "customerID" && (
+                        Customer ID
+                        {sortField === "customerID" && (
                       <span className="ml-2">
                         {sortDirection === "asc" ? "↑" : "↓"}
                       </span>
-                    )}
+                        )}
                   </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort("prediction")}
-                >
+                      >
                   <div className="flex items-center">
-                    Prediction
-                    {sortField === "prediction" && (
+                        Prediction
+                        {sortField === "prediction" && (
                       <span className="ml-2">
                         {sortDirection === "asc" ? "↑" : "↓"}
                       </span>
-                    )}
+                        )}
                   </div>
-                </th>
-                <th
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                      </th>
+                      <th
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                   onClick={() => handleSort("churnProbability")}
-                >
+                      >
                   <div className="flex items-center">
-                    Churn Probability
-                    {sortField === "churnProbability" && (
+                        Churn Probability
+                        {sortField === "churnProbability" && (
                       <span className="ml-2">
                         {sortDirection === "asc" ? "↑" : "↓"}
                       </span>
-                    )}
+                        )}
                   </div>
-                </th>
+                      </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Risk Level
-                </th>
+                        Risk Level
+                      </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
               {currentData.map((prediction, index) => (
                 <tr
                   key={prediction.customerID || index}
                   className="hover:bg-gray-50"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {prediction.customerID || `Customer ${index + 1}`}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                         prediction.prediction === 1
-                          ? "bg-red-100 text-red-800"
-                          : "bg-green-100 text-green-800"
-                      }`}
-                    >
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-green-100 text-green-800"
+                              }`}
+                            >
                       {prediction.prediction === 1 ? "Will Churn" : "Will Stay"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {(prediction.churnProbability * 100).toFixed(1)}%
-                  </td>
+                          </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -795,20 +795,20 @@ const TableView = ({ data }) => {
                         : prediction.churnProbability > 0.3
                           ? "Medium"
                           : "Low"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center text-green-600">
                       <FaCheckCircle className="mr-1.5 h-4 w-4" />
                       <span className="text-xs text-gray-600">Processed</span>
                     </div>
-                  </td>
-                </tr>
+                          </td>
+                        </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
       <div className="flex justify-center mt-4 space-x-2">
         <button
@@ -870,12 +870,12 @@ const ChartsView = ({ data }) => {
   const churnPercentage = (churnCount / totalRecords) * 100;
 
   return (
-    <div className="space-y-6">
+            <div className="space-y-6">
       {/* Risk Level Distribution */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">
           Risk Level Distribution
-        </h3>
+                </h3>
         <div className="h-80 flex items-end justify-around px-10">
           {[
             {
@@ -913,14 +913,14 @@ const ChartsView = ({ data }) => {
               <p className="text-xs text-gray-500">{risk.count} customers</p>
             </div>
           ))}
-        </div>
-      </div>
+                </div>
+              </div>
 
       {/* Churn Distribution */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">
           Churn Prediction Distribution
-        </h3>
+                </h3>
         <div className="flex justify-center">
           <div className="relative w-64 h-64">
             <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -954,14 +954,14 @@ const ChartsView = ({ data }) => {
               Likely to Stay ({stayCount})
             </span>
           </div>
-        </div>
-      </div>
+                </div>
+              </div>
 
       {/* Risk Factors Analysis */}
       <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-700 mb-4">
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">
           Risk Factors Analysis
-        </h3>
+                </h3>
         <div className="space-y-6">
           {(() => {
             const riskFactors = predictions.reduce((acc, pred) => {
@@ -1271,7 +1271,7 @@ const BatchPredictionDetail = () => {
           >
             Upgrade to Gold
           </button>
-        </div>
+                  </div>
       </div>
     );
   }
@@ -1284,8 +1284,8 @@ const BatchPredictionDetail = () => {
           {isCheckingAccess
             ? "Checking access status..."
             : "Loading prediction details..."}
-        </p>
-      </div>
+                    </p>
+                  </div>
     );
   }
 
@@ -1306,8 +1306,8 @@ const BatchPredictionDetail = () => {
           >
             View Subscription Plans
           </button>
-        </div>
-      </div>
+                  </div>
+                </div>
     );
   }
 
@@ -1324,8 +1324,8 @@ const BatchPredictionDetail = () => {
           >
             Back to Account
           </button>
-        </div>
-      </div>
+              </div>
+            </div>
     );
   }
 
@@ -1384,13 +1384,13 @@ const BatchPredictionDetail = () => {
                   {mode.charAt(0).toUpperCase() + mode.slice(1)}
                 </button>
               ))}
-            </div>
+          </div>
 
             {/* Content based on view mode */}
             <div className="mt-6">
               <CurrentView data={{ batchData, predictions }} />
-            </div>
-          </div>
+      </div>
+    </div>
         </div>
       </div>
     </ErrorBoundary>

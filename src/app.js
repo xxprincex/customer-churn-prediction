@@ -152,7 +152,16 @@ const appRouter = (user) =>
     },
   ]);
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
+// Create root only if it doesn't exist
+let root;
+if (!window.__REACT_ROOT__) {
+  root = ReactDOM.createRoot(document.getElementById("root"));
+  window.__REACT_ROOT__ = root;
+} else {
+  root = window.__REACT_ROOT__;
+}
+
+// Render the app
 root.render(
   <React.StrictMode>
     <AuthProvider>
