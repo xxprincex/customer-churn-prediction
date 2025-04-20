@@ -324,6 +324,12 @@ const CsvResults = ({ results, fileName }) => {
 
       // Save chunks
       const chunkPromises = chunks.map(async (chunk, index) => {
+        // Only save if chunk is non-empty and contains at least one non-empty object
+        if (
+          !chunk.length ||
+          chunk.every((obj) => !obj || Object.keys(obj).length === 0)
+        )
+          return;
         const chunkRef = doc(
           predictionsRef,
           mainDocRef.id,
