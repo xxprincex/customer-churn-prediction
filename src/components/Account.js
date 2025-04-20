@@ -1371,30 +1371,31 @@ const Profile = () => {
                   <div className="lg:w-1/3 p-8 lg:p-12 bg-gradient-to-br from-gray-50/50 via-white/50 to-gray-100/50 backdrop-blur-md border-l border-white/20">
                     {userDetails?.subscriptionPlan === "free" && (
                       <div className="bg-white/90 rounded-xl p-8 shadow-lg border border-gray-200">
-                        <h2 className="text-3xl font-bold text-center mb-2">
+                        <h2 className="text-2xl font-bold text-center mb-4">
                           Upgrade to Gold Plan
                         </h2>
 
-                        <div className="bg-yellow-50 rounded-lg p-4 mb-6">
-                          <p className="text-center font-semibold text-yellow-800">
+                        <div className="bg-yellow-50 rounded-lg p-3 mb-6">
+                          <p className="text-center font-medium text-yellow-800">
                             Special Offer!
                             <br />
                             Try Premium Features Free for 1 Week
                           </p>
                         </div>
 
-                        <div className="text-center mb-6">
-                          <span className="text-4xl font-bold text-gray-900">
-                            ₹999
-                          </span>
-                          <span className="text-gray-600">/month</span>
+                        <div className="text-center mb-8">
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-2xl font-bold">₹</span>
+                            <span className="text-4xl font-bold">999</span>
+                            <span className="text-gray-600 mt-2">/month</span>
+                          </div>
                         </div>
 
-                        <div className="space-y-6 mb-8">
-                          <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm">
-                            <div className="bg-yellow-100 p-2 rounded-full">
+                        <div className="space-y-4 mb-8">
+                          <div className="flex items-start gap-3">
+                            <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
                               <svg
-                                className="w-6 h-6 text-yellow-600"
+                                className="w-5 h-5 text-yellow-600"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -1408,19 +1409,19 @@ const Profile = () => {
                               </svg>
                             </div>
                             <div>
-                              <h3 className="font-semibold">
+                              <h4 className="font-semibold text-gray-800">
                                 Unlimited Predictions
-                              </h3>
+                              </h4>
                               <p className="text-sm text-gray-600">
                                 No restrictions on predictions
                               </p>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm">
-                            <div className="bg-yellow-100 p-2 rounded-full">
+                          <div className="flex items-start gap-3">
+                            <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
                               <svg
-                                className="w-6 h-6 text-yellow-600"
+                                className="w-5 h-5 text-yellow-600"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -1429,30 +1430,24 @@ const Profile = () => {
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth="2"
-                                  d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M16 2v4M8 2v4M4 9h16"
+                                  d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z M16 2v4M8 2v4M4 9h16"
                                 />
                               </svg>
                             </div>
                             <div>
-                              <h3 className="font-semibold">
+                              <h4 className="font-semibold text-gray-800">
                                 Batch Processing
-                              </h3>
+                              </h4>
                               <p className="text-sm text-gray-600">
                                 Process multiple files at once
                               </p>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm">
-                            <div className="bg-yellow-100 p-2 rounded-full">
+                          <div className="flex items-start gap-3">
+                            <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
                               <svg
-                                className="w-6 h-6 text-yellow-600"
+                                className="w-5 h-5 text-yellow-600"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -1466,9 +1461,9 @@ const Profile = () => {
                               </svg>
                             </div>
                             <div>
-                              <h3 className="font-semibold">
+                              <h4 className="font-semibold text-gray-800">
                                 Priority Support
-                              </h3>
+                              </h4>
                               <p className="text-sm text-gray-600">
                                 24/7 premium customer support
                               </p>
@@ -1479,7 +1474,7 @@ const Profile = () => {
                         {!userDetails?.trialUsed ? (
                           <button
                             onClick={startTrial}
-                            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white rounded-full py-4 px-8 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mb-4"
+                            className="w-full bg-[#F7B614] hover:bg-[#e5a912] text-white rounded-full py-3 px-8 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mb-4"
                           >
                             <svg
                               className="w-5 h-5"
@@ -1499,7 +1494,7 @@ const Profile = () => {
                         ) : (
                           <button
                             onClick={handlePremiumUpgrade}
-                            className="w-full bg-yellow-500 hover:bg-yellow-600 text-white rounded-full py-4 px-8 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mb-4"
+                            className="w-full bg-[#F7B614] hover:bg-[#e5a912] text-white rounded-full py-3 px-8 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mb-4"
                           >
                             <svg
                               className="w-5 h-5"
