@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
-STRIPE_ENDPOINT_SECRET = os.getenv("STRIPE_ENDPOINT_SECRET")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -28,7 +28,7 @@ db = firestore.client()
 
 # Initialize Stripe
 stripe.api_key = STRIPE_API_KEY
-endpoint_secret = STRIPE_ENDPOINT_SECRET
+endpoint_secret = STRIPE_WEBHOOK_SECRET
 
 # Load the trained model
 with open('model_classifier.pkl', 'rb') as f:
@@ -252,9 +252,16 @@ def predict():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    if not endpoint_secret:
+        print("Warning: Stripe webhook secret is not set!")
+        return jsonify({'error': 'Stripe webhook secret is not configured'}), 500
+
     event = None
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature')
+
+    if not sig_header:
+        return jsonify({'error': 'No Stripe signature header'}), 400
 
     try:
         event = stripe.Webhook.construct_event(
@@ -266,24 +273,33 @@ def webhook():
     except stripe.error.SignatureVerificationError as e:
         print("Invalid signature:", e)
         return jsonify({'error': 'Invalid signature'}), 400
-
-    print(f"Received event: {event['type']}")
+    except Exception as e:
+        print("Unexpected error:", e)
+        return jsonify({'error': 'Unexpected error processing webhook'}), 500
 
     # Handle the checkout.session.completed event
     if event['type'] == 'checkout.session.completed':
-        session = event['data']['object']
-        print(f"Processing completed checkout session: {session.get('id')}")
-        
-        # Get customer email from the session
-        customer_email = session.get('customer_details', {}).get('email')
-        print(f"Customer email from session: {customer_email}")
-        
-        if customer_email:
+        try:
+            session = event['data']['object']
+            print(f"Processing completed checkout session: {session.get('id')}")
+            
+            # Get customer email from the session
+            customer_email = session.get('customer_details', {}).get('email')
+            print(f"Customer email from session: {customer_email}")
+            
+            if not customer_email:
+                print("No customer email found in session.")
+                return jsonify({'error': 'No customer email in session'}), 400
+
             # Query Firestore for user with this email
             users_ref = db.collection('Users')
             query = users_ref.where('email', '==', customer_email).limit(1)
             user_docs = query.get()
             print(f"Number of user docs found: {len(user_docs)}")
+
+            if not user_docs:
+                print(f"No user found with email: {customer_email}")
+                return jsonify({'error': 'User not found'}), 404
 
             for user_doc in user_docs:
                 print(f"Updating user doc: {user_doc.id}")
@@ -300,10 +316,13 @@ def webhook():
                     'stripeSessionId': session.get('id')
                 })
                 print(f"Updated subscription for user: {user_doc.id}")
-        else:
-            print("No customer email found in session.")
+                return jsonify({'status': 'success', 'message': 'Subscription updated'}), 200
 
-    return jsonify({'status': 'success'}), 200
+        except Exception as e:
+            print(f"Error processing checkout session: {str(e)}")
+            return jsonify({'error': f'Error processing checkout: {str(e)}'}), 500
+
+    return jsonify({'status': 'success', 'message': 'Event received'}), 200
 
 def validate_and_clean_record(record, customer_id):
     """Validate and clean a single record"""
