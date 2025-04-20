@@ -149,6 +149,30 @@ const goldShineStyles = `
   }
 `;
 
+// Add this helper at the top-level of the component
+const formatDisplayDate = (date) => {
+  if (!date) return "N/A";
+  if (typeof date === "string") {
+    const d = new Date(date);
+    if (!isNaN(d)) return d.toLocaleDateString("en-IN");
+  }
+  if (date instanceof Date) return date.toLocaleDateString("en-IN");
+  if (date.toDate) return date.toDate().toLocaleDateString("en-IN");
+  return "Invalid Date";
+};
+
+// Add this helper at the top-level of the component
+const getDateObj = (val) => {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  if (typeof val === "string") {
+    const d = new Date(val);
+    if (!isNaN(d)) return d;
+  }
+  if (val.toDate) return val.toDate();
+  return null;
+};
+
 // Add these new components for enhanced features
 const FeatureCard = ({ icon, title, description }) => (
   <div className="feature-card bg-white rounded-xl p-4 shadow-sm hover:shadow-lg transition-all duration-300">
@@ -382,7 +406,7 @@ const Profile = () => {
           id: doc.id,
           ...data,
           date: data.timestamp
-            ? new Date(data.timestamp.toDate()).toLocaleString()
+            ? formatDisplayDate(data.timestamp.toDate())
             : "Unknown date",
         });
       });
@@ -479,9 +503,36 @@ const Profile = () => {
   };
 
   // Update handleUpgrade function for trial start
-  const handleUpgrade = () => {
-    // Redirect to Stripe payment link
-    window.location.href = process.env.REACT_APP_STRIPE_PAYMENT_LINK;
+  const handleUpgrade = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        toast.error("Please login to upgrade");
+        navigate("/login");
+        return;
+      }
+
+      setIsProcessing(true);
+
+      // Use the hardcoded test payment link
+      const paymentLink = "https://buy.stripe.com/test_14k14BbYP3iQfPa4gg";
+
+      if (!paymentLink) {
+        throw new Error("Payment link not configured");
+      }
+
+      // Add success_url parameter to the payment link
+      const successUrl = `${window.location.origin}/account`;
+      const finalPaymentLink = `${paymentLink}?success_url=${encodeURIComponent(successUrl)}`;
+
+      // Redirect to Stripe payment link
+      window.location.href = finalPaymentLink;
+    } catch (error) {
+      console.error("Error initiating upgrade:", error);
+      toast.error("Could not process upgrade. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handlePremiumUpgrade = async () => {
@@ -495,8 +546,13 @@ const Profile = () => {
 
       setIsProcessing(true);
 
+      // Add success_url parameter and customer email to redirect URL
+      const successUrl = `${window.location.origin}/account?success=true`;
+      const paymentLink = "https://buy.stripe.com/test_14k14BbYP3iQfPa4gg";
+      const finalPaymentLink = `${paymentLink}?success_url=${encodeURIComponent(successUrl)}&prefilled_email=${encodeURIComponent(currentUser.email)}`;
+
       // Redirect to Stripe payment link
-      window.location.href = process.env.REACT_APP_STRIPE_PAYMENT_LINK;
+      window.location.href = finalPaymentLink;
     } catch (error) {
       console.error("Error initiating upgrade:", error);
       toast.error("Could not process upgrade. Please try again.");
@@ -541,25 +597,24 @@ const Profile = () => {
     return date;
   };
 
-  // Update checkPaymentStatus to handle success without webhooks
+  // Update checkPaymentStatus to be more resilient
   const checkPaymentStatus = async () => {
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) return;
 
-      const userRef = doc(db, "Users", currentUser.uid);
-      const userDoc = await getDoc(userRef);
+      const urlParams = new URLSearchParams(window.location.search);
+      const success = urlParams.get("success");
 
-      if (!userDoc.exists()) return;
+      if (success === "true") {
+        console.log("Payment successful, updating subscription status...");
 
-      // If coming back from payment, update to premium
-      if (window.location.href.includes("buy.stripe.com")) {
-        // Update subscription status directly
+        const userRef = doc(db, "Users", currentUser.uid);
         const now = new Date();
         const subscriptionEndDate = new Date(now);
         subscriptionEndDate.setMonth(now.getMonth() + 1);
 
-        await updateDoc(userRef, {
+        const updateData = {
           subscriptionPlan: "Gold",
           subscriptionStatus: "active",
           subscriptionStartDate: now,
@@ -567,19 +622,22 @@ const Profile = () => {
           lastUpdated: now,
           trialEndDate: null,
           trialStartDate: null,
-        });
+        };
 
-        // Update local state
+        await updateDoc(userRef, updateData);
         setSubscriptionPlan("Gold");
+        setUserDetails((prev) => ({ ...prev, ...updateData }));
+
         toast.success(
           "🌟 Welcome to Gold Plan! Your premium features are now active."
         );
 
-        // Navigate back to account page
-        navigate("/account");
-
-        // Refresh user data
-        await fetchUserData();
+        // Clear URL parameters
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
       }
     } catch (error) {
       console.error("Error checking payment status:", error);
@@ -589,16 +647,28 @@ const Profile = () => {
     }
   };
 
-  // Add this effect to check payment status on mount
+  // Update the useEffect hook for payment status check
   useEffect(() => {
-    if (window.location.href.includes("buy.stripe.com")) {
-      checkPaymentStatus();
+    const checkPayment = async () => {
+      // Check if we have a session ID in either hash or search params
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId =
+        hashParams.get("cs_test") || urlParams.get("session_id");
+
+      if (sessionId) {
+        await checkPaymentStatus();
+      }
+    };
+
+    if (auth.currentUser) {
+      checkPayment();
     }
-  }, []);
+  }, [location.search, location.hash]); // Run when URL parameters or hash change
 
   const checkTrialStatus = async (userData) => {
     if (userData.trialEndDate) {
-      const trialEnd = userData.trialEndDate.toDate();
+      const trialEnd = getDateObj(userData.trialEndDate);
       if (trialEnd < new Date()) {
         // Trial has expired
         const userRef = doc(db, "Users", auth.currentUser.uid);
@@ -629,7 +699,7 @@ const Profile = () => {
           if (userData.subscriptionStatus === "active") {
             setSubscriptionPlan("Gold");
           } else if (userData.subscriptionStatus === "trial") {
-            if (userData.trialEndDate?.toDate() > new Date()) {
+            if (getDateObj(userData.trialEndDate) > new Date()) {
               setSubscriptionPlan("Gold");
             } else {
               // Trial has expired
@@ -699,6 +769,36 @@ const Profile = () => {
       navigate("/login");
     } catch (error) {
       console.error("Error logging out", error.message);
+    }
+  };
+
+  // Add this function to start a trial for free/new users
+  const startTrial = async () => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        toast.error("Please login to start your trial");
+        navigate("/login");
+        return;
+      }
+      const userRef = doc(db, "Users", currentUser.uid);
+      const now = new Date();
+      const trialEnd = new Date(now);
+      trialEnd.setDate(now.getDate() + 7); // 7 days trial
+      const updateData = {
+        subscriptionPlan: "Gold",
+        subscriptionStatus: "trial",
+        trialStartDate: now,
+        trialEndDate: trialEnd,
+        lastUpdated: now,
+      };
+      await updateDoc(userRef, updateData);
+      setSubscriptionPlan("Gold");
+      setUserDetails((prev) => ({ ...prev, ...updateData }));
+      toast.success("🎉 Trial started! Enjoy premium features for 1 week.");
+    } catch (error) {
+      console.error("Error starting trial:", error);
+      toast.error("Could not start trial. Please try again.");
     }
   };
 
@@ -932,8 +1032,8 @@ const Profile = () => {
             lowRiskCount: summary.lowRisk || 0,
           },
           date: data.timestamp
-            ? new Date(data.timestamp.toDate()).toLocaleString()
-            : new Date(data.saveTimestamp).toLocaleString(),
+            ? formatDisplayDate(data.timestamp.toDate())
+            : formatDisplayDate(data.saveTimestamp),
         });
       }
 
@@ -1072,7 +1172,7 @@ const Profile = () => {
                             >
                               <path
                                 fillRule="evenodd"
-                                d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
+                                d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5-2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
                                 clipRule="evenodd"
                               />
                             </svg>
@@ -1358,7 +1458,7 @@ const Profile = () => {
                                   fill="currentColor"
                                   viewBox="0 0 20 20"
                                 >
-                                  <path d="M5.5 13a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 13H11V9.413l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13H5.5z" />
+                                  <path d="M5.5 13a3.5 3.5 0 01-.369-6.98 a4 4 0 117.753-1.977A4.5 4.5 0 1113.5 13H11V9.413l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13H5.5z" />
                                 </svg>
                               </div>
                               <div>
@@ -1396,27 +1496,58 @@ const Profile = () => {
                         </div>
 
                         <div className="space-y-3">
-                          <button
-                            onClick={handleUpgrade}
-                            className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
-                          >
-                            <svg
-                              className="w-5 h-5 animate-pulse"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
+                          {/* Show Start Trial button only if user never had a trial or trial expired */}
+                          {(!userDetails?.trialEndDate ||
+                            (userDetails?.trialEndDate &&
+                              getDateObj(userDetails.trialEndDate) <
+                                new Date())) && (
+                            <button
+                              onClick={startTrial}
+                              className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M13 10V3L4 14h7v7l9-11h-7z"
-                              />
-                            </svg>
-                            Start 1-Week Free Trial
-                          </button>
+                              <svg
+                                className="w-5 h-5 animate-pulse"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                                />
+                              </svg>
+                              Start 1-Week Free Trial
+                            </button>
+                          )}
+                          {/* Show Stripe payment button only if trial expired or never started */}
+                          {userDetails &&
+                            userDetails.trialEndDate &&
+                            getDateObj(userDetails.trialEndDate) <
+                              new Date() && (
+                              <button
+                                onClick={handlePremiumUpgrade}
+                                className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2 mt-2"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                                  />
+                                </svg>
+                                Upgrade to Premium
+                              </button>
+                            )}
                           <p className="text-center text-sm text-gray-500">
-                            No credit card required.
+                            No credit card required for trial.
                           </p>
                         </div>
                       </div>
@@ -1434,7 +1565,7 @@ const Profile = () => {
                               >
                                 <path
                                   fillRule="evenodd"
-                                  d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
+                                  d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5-2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
                                   clipRule="evenodd"
                                 />
                               </svg>
@@ -1450,26 +1581,32 @@ const Profile = () => {
                                 <div>
                                   <p className="text-gray-600">Started:</p>
                                   <p className="text-xl font-semibold text-yellow-700">
-                                    {userDetails.trialStartDate
-                                      ?.toDate()
-                                      .toLocaleDateString("en-IN")}
+                                    {formatDisplayDate(
+                                      userDetails.trialStartDate
+                                    )}
                                   </p>
                                 </div>
                                 <div>
                                   <p className="text-gray-600">Ends:</p>
                                   <p className="text-xl font-semibold text-yellow-700">
-                                    {userDetails.trialEndDate
-                                      ?.toDate()
-                                      .toLocaleDateString("en-IN")}
+                                    {formatDisplayDate(
+                                      userDetails.trialEndDate
+                                    )}
                                   </p>
                                 </div>
                                 <div className="pt-4 border-t border-gray-100">
                                   <p className="text-2xl font-bold text-yellow-800">
-                                    {Math.ceil(
-                                      (userDetails.trialEndDate?.toDate() -
-                                        new Date()) /
-                                        (1000 * 60 * 60 * 24)
-                                    )}{" "}
+                                    {(() => {
+                                      const end = getDateObj(
+                                        userDetails.trialEndDate
+                                      );
+                                      if (!end) return "N/A";
+                                      const diff = Math.ceil(
+                                        (end - new Date()) /
+                                          (1000 * 60 * 60 * 24)
+                                      );
+                                      return diff > 0 ? diff : 0;
+                                    })()}{" "}
                                     days remaining
                                   </p>
                                 </div>
@@ -1477,7 +1614,7 @@ const Profile = () => {
                             </div>
 
                             {Math.ceil(
-                              (userDetails.trialEndDate?.toDate() -
+                              (getDateObj(userDetails.trialEndDate) -
                                 new Date()) /
                                 (1000 * 60 * 60 * 24)
                             ) <= 2 && (
@@ -1490,7 +1627,7 @@ const Profile = () => {
                                   >
                                     <path
                                       fillRule="evenodd"
-                                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v4a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 002 0V6a1 1 0 00-1-1z"
                                       clipRule="evenodd"
                                     />
                                   </svg>
@@ -1542,7 +1679,7 @@ const Profile = () => {
                               >
                                 <path
                                   fillRule="evenodd"
-                                  d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
+                                  d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5-2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
                                   clipRule="evenodd"
                                 />
                               </svg>
@@ -1558,17 +1695,17 @@ const Profile = () => {
                                 <div>
                                   <p className="text-gray-600">Started:</p>
                                   <p className="text-xl font-semibold text-yellow-700">
-                                    {userDetails.subscriptionStartDate
-                                      ?.toDate()
-                                      .toLocaleDateString("en-IN")}
+                                    {formatDisplayDate(
+                                      userDetails.subscriptionStartDate
+                                    )}
                                   </p>
                                 </div>
                                 <div>
                                   <p className="text-gray-600">Next Billing:</p>
                                   <p className="text-xl font-semibold text-yellow-700">
-                                    {userDetails.subscriptionEndDate
-                                      ?.toDate()
-                                      .toLocaleDateString("en-IN")}
+                                    {formatDisplayDate(
+                                      userDetails.subscriptionEndDate
+                                    )}
                                   </p>
                                 </div>
                                 <div className="pt-4 border-t border-gray-100">

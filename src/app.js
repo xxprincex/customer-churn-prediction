@@ -150,7 +150,12 @@ const appRouter = (user) =>
       ],
       errorElement: <Error />,
     },
-  ]);
+  ], {
+    future: {
+      v7_startTransition: true,
+      v7_relativeSplatPath: true
+    }
+  });
 
 // Create root only if it doesn't exist
 let root;

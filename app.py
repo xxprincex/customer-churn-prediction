@@ -6,9 +6,23 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
 import joblib
 import time
+import stripe
+import firebase_admin
+from firebase_admin import credentials, firestore
+import os
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# Initialize Firebase Admin
+cred = credentials.Certificate('serviceAccountKey.json')
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+# Initialize Stripe
+stripe.api_key = 'sk_test_51REVjd6QSAB9A7vjyUOo2i92Pkp2lFMidyx4YN35jBYtzB8JOTSvY4SEWIBs4PpRElAgWHPTd9k5V4CVbRkBcN1n004ac4oaNm'
+endpoint_secret = 'whsec_ce4b8397c2c3d24c76a99efe96296cd8e12892f5b067149c932274e27877862b'
 
 # Load the trained model
 with open('model_classifier.pkl', 'rb') as f:
@@ -229,6 +243,58 @@ def predict():
     
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    event = None
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret
+        )
+    except ValueError as e:
+        print("Invalid payload:", e)
+        return jsonify({'error': 'Invalid payload'}), 400
+    except stripe.error.SignatureVerificationError as e:
+        print("Invalid signature:", e)
+        return jsonify({'error': 'Invalid signature'}), 400
+
+    # Handle the checkout.session.completed event
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        print("Processing completed checkout session:", session.id)
+        
+        # Get customer email from the session
+        customer_email = session.get('customer_details', {}).get('email')
+        print("Customer email:", customer_email)
+        
+        if customer_email:
+            # Query Firestore for user with this email
+            users_ref = db.collection('Users')
+            query = users_ref.where('email', '==', customer_email).limit(1)
+            user_docs = query.get()
+
+            for user_doc in user_docs:
+                # Calculate subscription dates
+                now = datetime.now()
+                subscription_end = now + timedelta(days=30)  # 30 days subscription
+
+                # Update user document
+                user_doc.reference.update({
+                    'subscriptionPlan': 'Gold',
+                    'subscriptionStatus': 'active',
+                    'subscriptionStartDate': now,
+                    'subscriptionEndDate': subscription_end,
+                    'lastUpdated': now,
+                    'trialEndDate': None,
+                    'trialStartDate': None,
+                    'stripeSessionId': session.id
+                })
+                print("Updated subscription for user:", user_doc.id)
+
+    return jsonify({'status': 'success'}), 200
 
 def validate_and_clean_record(record, customer_id):
     """Validate and clean a single record"""
