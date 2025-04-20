@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { auth, db } from "./firebase";
+import { auth, db } from "../firebase";
 import { stripePromise, GOLD_PLAN_PRICE } from "../stripe";
 import {
   getDoc,

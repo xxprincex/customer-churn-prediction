@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FaCheckCircle, FaExclamationTriangle } from "react-icons/fa";
 import { MdError } from "react-icons/md";
-import { auth, db } from "./firebase";
+import { auth, db } from "../firebase";
 import {
   collection,
   addDoc,

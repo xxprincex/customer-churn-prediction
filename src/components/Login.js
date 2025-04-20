@@ -13,7 +13,7 @@ import {
   sendPasswordResetEmail,
   signOut,
 } from "firebase/auth";
-import { auth } from "./firebase";
+import { auth } from "../firebase";
 import { toast } from "react-toastify";
 
 const pageVariants = {

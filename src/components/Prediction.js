@@ -13,10 +13,10 @@ import {
   doc,
   updateDoc,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { db } from "../firebase";
 import { AiOutlineQuestionCircle } from "react-icons/ai";
 import Result from "./Result";
-import { auth } from "./firebase";
+import { auth } from "../firebase";
 import CsvUpload from "./CsvUpload";
 
 // Function to generate a unique customer ID

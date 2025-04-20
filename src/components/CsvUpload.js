@@ -9,7 +9,7 @@ import {
   getDoc,
   doc,
 } from "firebase/firestore";
-import { db, auth } from "./firebase";
+import { db, auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import useOnlineStatus from "../utils/useOnlineStatus";
 import CsvResults from "./CsvResults";
@@ -276,19 +276,25 @@ const CsvUpload = () => {
                 setHasAccess(true);
               } else {
                 setHasAccess(false);
-                toast.error("Your trial has expired. Please upgrade to continue using batch predictions.");
+                toast.error(
+                  "Your trial has expired. Please upgrade to continue using batch predictions."
+                );
                 navigate("/account");
               }
             } else if (userData.subscriptionStatus === "active") {
               setHasAccess(true);
             } else {
               setHasAccess(false);
-              toast.error("Please upgrade to Gold plan to use batch predictions.");
+              toast.error(
+                "Please upgrade to Gold plan to use batch predictions."
+              );
               navigate("/account");
             }
           } else {
             setHasAccess(false);
-            toast.error("Batch predictions are only available for Gold subscribers.");
+            toast.error(
+              "Batch predictions are only available for Gold subscribers."
+            );
             navigate("/account");
           }
         } else {

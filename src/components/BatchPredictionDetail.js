@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { auth, db } from "./firebase";
+import { auth, db } from "../firebase";
 import {
   collection,
   doc,

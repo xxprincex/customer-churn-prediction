@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { auth, db } from "./firebase";
+import { auth, db } from "../firebase";
 import { doc, getDoc, deleteDoc } from "firebase/firestore";
 import {
   FaExclamationTriangle,

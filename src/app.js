@@ -18,7 +18,7 @@ import {
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { useEffect, useState } from "react";
-import { auth } from "./components/firebase";
+import { auth } from "./firebase";
 import Account from "./components/Account";
 import PredictionDetail from "./components/PredictionDetail";
 import CsvUpload from "./components/CsvUpload";
