@@ -271,7 +271,6 @@ const Tooltip = ({ children, content }) => {
 const Profile = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [predictions, setPredictions] = useState([]);
-  const [subscriptionPlan, setSubscriptionPlan] = useState("Free");
   const [loading, setLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
@@ -358,7 +357,7 @@ const Profile = () => {
       }
 
       const userData = userDoc.data();
-      if (userData.subscriptionPlan !== "Gold") {
+      if (userData.subscriptionPlan !== "gold") {
         toast.error(
           "Auto-save settings are only available for Gold subscribers"
         );
@@ -453,11 +452,7 @@ const Profile = () => {
         const updatedDoc = await getDoc(userRef);
         const userData = updatedDoc.data();
 
-        if (
-          userData.subscriptionStatus === "active" &&
-          userData.subscriptionPlan === "Gold"
-        ) {
-          setSubscriptionPlan("Gold");
+        if (userData.subscriptionPlan === "gold") {
           toast.success(
             "🌟 Welcome to Gold Plan! Your premium features are now active."
           );
@@ -502,36 +497,32 @@ const Profile = () => {
     return date;
   };
 
-  // Update handleUpgrade function for trial start
-  const handleUpgrade = async () => {
+  // Update startTrial to set only subscriptionPlan, trialUsed, trialEndDate
+  const startTrial = async () => {
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        toast.error("Please login to upgrade");
+        toast.error("Please login to start your trial");
         navigate("/login");
         return;
       }
-
-      setIsProcessing(true);
-
-      // Use the hardcoded test payment link
-      const paymentLink = "https://buy.stripe.com/test_14k14BbYP3iQfPa4gg";
-
-      if (!paymentLink) {
-        throw new Error("Payment link not configured");
-      }
-
-      // Add success_url parameter to the payment link
-      const successUrl = `${window.location.origin}/account`;
-      const finalPaymentLink = `${paymentLink}?success_url=${encodeURIComponent(successUrl)}`;
-
-      // Redirect to Stripe payment link
-      window.location.href = finalPaymentLink;
+      const userRef = doc(db, "Users", currentUser.uid);
+      const now = new Date();
+      const trialEnd = new Date(now);
+      trialEnd.setDate(now.getDate() + 7); // 7 days trial
+      const updateData = {
+        subscriptionPlan: "trial",
+        trialUsed: true,
+        trialStartDate: now,
+        trialEndDate: trialEnd,
+        lastUpdated: now,
+      };
+      await updateDoc(userRef, updateData);
+      setUserDetails((prev) => ({ ...prev, ...updateData }));
+      toast.success("🎉 Trial started! Enjoy premium features for 1 week.");
     } catch (error) {
-      console.error("Error initiating upgrade:", error);
-      toast.error("Could not process upgrade. Please try again.");
-    } finally {
-      setIsProcessing(false);
+      console.error("Error starting trial:", error);
+      toast.error("Could not start trial. Please try again.");
     }
   };
 
@@ -615,8 +606,7 @@ const Profile = () => {
         subscriptionEndDate.setMonth(now.getMonth() + 1);
 
         const updateData = {
-          subscriptionPlan: "Gold",
-          subscriptionStatus: "active",
+          subscriptionPlan: "gold",
           subscriptionStartDate: now,
           subscriptionEndDate: subscriptionEndDate,
           lastUpdated: now,
@@ -625,7 +615,6 @@ const Profile = () => {
         };
 
         await updateDoc(userRef, updateData);
-        setSubscriptionPlan("Gold");
         setUserDetails((prev) => ({ ...prev, ...updateData }));
 
         toast.success(
@@ -666,61 +655,24 @@ const Profile = () => {
     }
   }, [location.search, location.hash]); // Run when URL parameters or hash change
 
-  const checkTrialStatus = async (userData) => {
-    if (userData.trialEndDate) {
-      const trialEnd = getDateObj(userData.trialEndDate);
-      if (trialEnd < new Date()) {
-        // Trial has expired
-        const userRef = doc(db, "Users", auth.currentUser.uid);
-        await updateDoc(userRef, {
-          subscriptionPlan: "Free",
-          trialEndDate: null,
-          trialStartDate: null,
-        });
-        setSubscriptionPlan("Free");
-        toast.info("Your trial period has ended. Upgrade coming soon!");
-      }
-    }
-  };
-
+  // Update fetchUserData to set a default subscriptionPlan ('free') if missing
   const fetchUserData = async () => {
     try {
       const currentUser = auth.currentUser;
       if (currentUser) {
         const docRef = doc(db, "Users", currentUser.uid);
         const docSnap = await getDoc(docRef);
-
         if (docSnap.exists()) {
           const userData = docSnap.data();
-          console.log("User subscription status:", userData.subscriptionStatus);
-          setUserDetails(userData);
-
-          // Update subscription plan based on status
-          if (userData.subscriptionStatus === "active") {
-            setSubscriptionPlan("Gold");
-          } else if (userData.subscriptionStatus === "trial") {
-            if (getDateObj(userData.trialEndDate) > new Date()) {
-              setSubscriptionPlan("Gold");
-            } else {
-              // Trial has expired
-              await updateDoc(docRef, {
-                subscriptionPlan: "Free",
-                subscriptionStatus: "inactive",
-                trialEndDate: null,
-                trialStartDate: null,
-              });
-              setSubscriptionPlan("Free");
-              toast.info("Your trial period has ended.");
-            }
-          } else {
-            setSubscriptionPlan("Free");
+          // Set default plan if missing
+          if (!userData.subscriptionPlan) {
+            userData.subscriptionPlan = "free";
           }
+          setUserDetails(userData);
         } else {
-          console.log("No user document found");
           navigate("/login");
         }
       } else {
-        console.log("No authenticated user");
         setUserDetails(null);
         navigate("/login");
       }
@@ -772,33 +724,26 @@ const Profile = () => {
     }
   };
 
-  // Add this function to start a trial for free/new users
-  const startTrial = async () => {
-    try {
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        toast.error("Please login to start your trial");
-        navigate("/login");
-        return;
+  // Update trial expiration logic
+  const checkTrialStatus = async (userData) => {
+    if (userData.trialEndDate) {
+      const trialEnd = getDateObj(userData.trialEndDate);
+      if (trialEnd < new Date()) {
+        const userRef = doc(db, "Users", auth.currentUser.uid);
+        await updateDoc(userRef, {
+          subscriptionPlan: "free",
+          trialEndDate: null,
+          trialStartDate: null,
+          lastUpdated: new Date(),
+        });
+        setUserDetails((prev) => ({
+          ...prev,
+          subscriptionPlan: "free",
+          trialEndDate: null,
+          trialStartDate: null,
+        }));
+        toast.info("Your trial period has ended. Upgrade coming soon!");
       }
-      const userRef = doc(db, "Users", currentUser.uid);
-      const now = new Date();
-      const trialEnd = new Date(now);
-      trialEnd.setDate(now.getDate() + 7); // 7 days trial
-      const updateData = {
-        subscriptionPlan: "Gold",
-        subscriptionStatus: "trial",
-        trialStartDate: now,
-        trialEndDate: trialEnd,
-        lastUpdated: now,
-      };
-      await updateDoc(userRef, updateData);
-      setSubscriptionPlan("Gold");
-      setUserDetails((prev) => ({ ...prev, ...updateData }));
-      toast.success("🎉 Trial started! Enjoy premium features for 1 week.");
-    } catch (error) {
-      console.error("Error starting trial:", error);
-      toast.error("Could not start trial. Please try again.");
     }
   };
 
@@ -933,11 +878,7 @@ const Profile = () => {
 
   // Add the hasGoldAccess function before the return statement
   const hasGoldAccess = () => {
-    return (
-      subscriptionPlan === "Gold" &&
-      (userDetails?.subscriptionStatus === "trial" ||
-        userDetails?.subscriptionStatus === "active")
-    );
+    return userDetails?.subscriptionPlan === "gold";
   };
 
   // Add the clearDateFilter function before the return statement
@@ -1177,9 +1118,7 @@ const Profile = () => {
                               />
                             </svg>
                             <span className="text-yellow-800 font-semibold">
-                              {userDetails?.subscriptionStatus === "trial"
-                                ? "TRIAL ACTIVE"
-                                : "GOLD MEMBER"}
+                              GOLD MEMBER
                             </span>
                           </div>
                         </div>
@@ -1355,7 +1294,7 @@ const Profile = () => {
                       </button>
 
                       <div className="flex items-center gap-4">
-                        {userDetails?.subscriptionPlan === "Gold" && (
+                        {userDetails?.subscriptionPlan === "gold" && (
                           <Tooltip content="Choose to automatically save all prediction results">
                             <button
                               onClick={handleAutoSaveToggle}
@@ -1403,158 +1342,52 @@ const Profile = () => {
 
                   {/* Right Panel - Plan Info */}
                   <div className="lg:w-1/3 p-8 lg:p-12 bg-gradient-to-br from-gray-50/50 via-white/50 to-gray-100/50 backdrop-blur-md border-l border-white/20">
-                    {(!subscriptionPlan || subscriptionPlan === "Free") && (
-                      <div className="space-y-8">
-                        <div className="text-center">
-                          <h3 className="text-2xl font-bold text-gray-800 mb-2">
-                            Upgrade to Gold Plan
-                          </h3>
-                          <div className="bg-yellow-100/90 rounded-xl p-3 mb-4 transform hover:scale-[1.02] transition-all duration-300 shadow-sm">
-                            <p className="text-yellow-800 font-semibold">
-                              Special Offer!
-                            </p>
-                            <p className="text-yellow-700 text-sm">
-                              Try Premium Features Free for 1 Week
-                            </p>
-                          </div>
-                          <div className="flex items-center justify-center gap-2 mb-6">
-                            <span className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">
-                              ₹999
-                            </span>
-                            <span className="text-gray-600 text-sm">
-                              /month
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300">
-                            <div className="flex items-start gap-3">
-                              <div className="bg-yellow-100 rounded-full p-2 mt-0.5">
-                                <svg
-                                  className="w-4 h-4 text-yellow-600"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z" />
-                                </svg>
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-gray-800">
-                                  Unlimited Predictions
-                                </h4>
-                                <p className="text-gray-600 text-sm">
-                                  No restrictions on predictions
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300">
-                            <div className="flex items-start gap-3">
-                              <div className="bg-yellow-100 rounded-full p-2 mt-0.5">
-                                <svg
-                                  className="w-4 h-4 text-yellow-600"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path d="M5.5 13a3.5 3.5 0 01-.369-6.98 a4 4 0 117.753-1.977A4.5 4.5 0 1113.5 13H11V9.413l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13H5.5z" />
-                                </svg>
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-gray-800">
-                                  Batch Processing
-                                </h4>
-                                <p className="text-gray-600 text-sm">
-                                  Process multiple files at once
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-300">
-                            <div className="flex items-start gap-3">
-                              <div className="bg-yellow-100 rounded-full p-2 mt-0.5">
-                                <svg
-                                  className="w-4 h-4 text-yellow-600"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-2 0c0 .993-.241 1.929-.668 2.754l-1.524-1.525a3.997 3.997 0 00.078-2.183l1.562-1.562C15.802 8.249 16 9.1 16 10zm-5.165 3.913l1.58 1.58A5.98 5.98 0 0110 16a5.976 5.976 0 01-2.516-.552l1.562-1.562a4.006 4.006 0 001.789.027zm-4.677-2.796a4.002 4.002 0 01-.041-2.08l-.08.08-1.53-1.533A5.98 5.98 0 004 10c0 .954.223 1.856.619 2.657l1.54-1.54zm1.088-6.45A5.974 5.974 0 0110 4c.954 0 1.856.223 2.657.619l-1.54 1.54a4.002 4.002 0 00-2.346.033L7.246 4.668zM12 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                </svg>
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-gray-800">
-                                  Priority Support
-                                </h4>
-                                <p className="text-gray-600 text-sm">
-                                  24/7 premium customer support
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          {/* Show Start Trial button only if user never had a trial or trial expired */}
-                          {(!userDetails?.trialEndDate ||
-                            (userDetails?.trialEndDate &&
-                              getDateObj(userDetails.trialEndDate) <
-                                new Date())) && (
-                            <button
-                              onClick={startTrial}
-                              className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
-                            >
-                              <svg
-                                className="w-5 h-5 animate-pulse"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                                />
-                              </svg>
-                              Start 1-Week Free Trial
-                            </button>
-                          )}
-                          {/* Show Stripe payment button only if trial expired or never started */}
-                          {userDetails &&
-                            userDetails.trialEndDate &&
-                            getDateObj(userDetails.trialEndDate) <
-                              new Date() && (
-                              <button
-                                onClick={handlePremiumUpgrade}
-                                className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2 mt-2"
-                              >
-                                <svg
-                                  className="w-5 h-5"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth="2"
-                                    d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                                  />
-                                </svg>
-                                Upgrade to Premium
-                              </button>
-                            )}
-                          <p className="text-center text-sm text-gray-500">
-                            No credit card required for trial.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {subscriptionPlan === "Gold" &&
-                      userDetails?.subscriptionStatus === "trial" && (
+                    {userDetails?.subscriptionPlan === "free" &&
+                      !userDetails?.trialUsed && (
+                        <button
+                          onClick={startTrial}
+                          className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2"
+                        >
+                          <svg
+                            className="w-5 h-5 animate-pulse"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M13 10V3L4 14h7v7l9-11h-7z"
+                            />
+                          </svg>
+                          Start 1-Week Free Trial
+                        </button>
+                      )}
+                    {userDetails?.subscriptionPlan === "free" &&
+                      userDetails?.trialUsed && (
+                        <button
+                          onClick={handlePremiumUpgrade}
+                          className="w-full bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-white rounded-full py-3 px-6 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center gap-2 mt-2"
+                        >
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                            />
+                          </svg>
+                          Upgrade to Premium
+                        </button>
+                      )}
+                    {userDetails?.subscriptionPlan === "trial" && (
+                      <>
                         <div className="space-y-8 mt-12">
                           <div className="text-center">
                             <div className="inline-flex items-center px-4 py-2 bg-yellow-400/20 rounded-full font-semibold backdrop-blur-sm">
@@ -1660,15 +1493,12 @@ const Profile = () => {
                               </svg>
                               Upgrade to Premium
                             </button>
-                            <p className="text-center text-sm text-gray-500">
-                              Monthly plan
-                            </p>
                           </div>
                         </div>
-                      )}
-
-                    {subscriptionPlan === "Gold" &&
-                      userDetails?.subscriptionStatus === "active" && (
+                      </>
+                    )}
+                    {userDetails?.subscriptionPlan === "gold" && (
+                      <>
                         <div className="space-y-8">
                           <div className="text-center">
                             <div className="inline-flex items-center px-4 py-2 bg-yellow-400/20 rounded-full font-semibold backdrop-blur-sm">
@@ -1766,7 +1596,25 @@ const Profile = () => {
                             </p>
                           </div>
                         </div>
-                      )}
+                      </>
+                    )}
+                    {/* Fallback poster for unknown or missing subscriptionPlan */}
+                    {!["free", "trial", "gold"].includes(
+                      userDetails?.subscriptionPlan
+                    ) && (
+                      <div className="bg-red-100 text-red-700 p-6 rounded-xl text-center mt-8">
+                        <h3 className="text-2xl font-bold mb-2">
+                          Unknown Plan
+                        </h3>
+                        <p className="mb-2">
+                          Your subscription plan is not recognized:{" "}
+                          <b>{String(userDetails?.subscriptionPlan)}</b>
+                        </p>
+                        <p>
+                          Please contact support or try logging out and back in.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1794,7 +1642,7 @@ const Profile = () => {
                       </button>
                       <button
                         onClick={() => {
-                          if (subscriptionPlan === "Gold") {
+                          if (userDetails?.subscriptionPlan === "gold") {
                             setShowBatchHistory(true);
                           } else {
                             toast.error(
@@ -1805,11 +1653,11 @@ const Profile = () => {
                         className={`px-4 py-2 rounded-lg transition-all duration-200 ${
                           showBatchHistory
                             ? "bg-[#1d5a7b] text-white shadow-lg"
-                            : subscriptionPlan === "Gold"
+                            : userDetails?.subscriptionPlan === "gold"
                               ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
                               : "bg-gray-100 text-gray-400 cursor-not-allowed"
                         }`}
-                        disabled={subscriptionPlan !== "Gold"}
+                        disabled={userDetails?.subscriptionPlan !== "gold"}
                       >
                         Batch Predictions
                       </button>

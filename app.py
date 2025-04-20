@@ -261,38 +261,41 @@ def webhook():
         print("Invalid signature:", e)
         return jsonify({'error': 'Invalid signature'}), 400
 
+    print(f"Received event: {event['type']}")
+
     # Handle the checkout.session.completed event
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        print("Processing completed checkout session:", session.id)
+        print(f"Processing completed checkout session: {session.get('id')}")
         
         # Get customer email from the session
         customer_email = session.get('customer_details', {}).get('email')
-        print("Customer email:", customer_email)
+        print(f"Customer email from session: {customer_email}")
         
         if customer_email:
             # Query Firestore for user with this email
             users_ref = db.collection('Users')
             query = users_ref.where('email', '==', customer_email).limit(1)
             user_docs = query.get()
+            print(f"Number of user docs found: {len(user_docs)}")
 
             for user_doc in user_docs:
-                # Calculate subscription dates
+                print(f"Updating user doc: {user_doc.id}")
                 now = datetime.now()
-                subscription_end = now + timedelta(days=30)  # 30 days subscription
-
-                # Update user document
+                subscription_end = now + timedelta(days=30)
                 user_doc.reference.update({
-                    'subscriptionPlan': 'Gold',
-                    'subscriptionStatus': 'active',
+                    'subscriptionPlan': 'gold',
+                    'trialUsed': True,
+                    'trialEndDate': None,
+                    'trialStartDate': None,
                     'subscriptionStartDate': now,
                     'subscriptionEndDate': subscription_end,
                     'lastUpdated': now,
-                    'trialEndDate': None,
-                    'trialStartDate': None,
-                    'stripeSessionId': session.id
+                    'stripeSessionId': session.get('id')
                 })
-                print("Updated subscription for user:", user_doc.id)
+                print(f"Updated subscription for user: {user_doc.id}")
+        else:
+            print("No customer email found in session.")
 
     return jsonify({'status': 'success'}), 200
 

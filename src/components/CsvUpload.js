@@ -268,25 +268,18 @@ const CsvUpload = () => {
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          // Only allow access if user has Gold subscription and valid trial/subscription
-          if (userData.subscriptionPlan === "Gold") {
-            if (userData.subscriptionStatus === "trial") {
-              const trialEnd = userData.trialEndDate?.toDate();
-              if (trialEnd && trialEnd > new Date()) {
-                setHasAccess(true);
-              } else {
-                setHasAccess(false);
-                toast.error(
-                  "Your trial has expired. Please upgrade to continue using batch predictions."
-                );
-                navigate("/account");
-              }
-            } else if (userData.subscriptionStatus === "active") {
+          // Only allow access if user has Gold or valid trial
+          if (userData.subscriptionPlan === "gold") {
+            setHasAccess(true);
+          } else if (userData.subscriptionPlan === "trial") {
+            const trialEnd =
+              userData.trialEndDate?.toDate?.() || userData.trialEndDate;
+            if (trialEnd && new Date(trialEnd) > new Date()) {
               setHasAccess(true);
             } else {
               setHasAccess(false);
               toast.error(
-                "Please upgrade to Gold plan to use batch predictions."
+                "Your trial has expired. Please upgrade to continue using batch predictions."
               );
               navigate("/account");
             }

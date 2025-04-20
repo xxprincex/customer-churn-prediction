@@ -29,11 +29,11 @@ const Result = ({ prediction, formData, error }) => {
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          setUserType(userData.subscriptionPlan || "Free");
+          setUserType((userData.subscriptionPlan || "free").toLowerCase());
           // For Free users, autoSave is always true
           // For Gold/Premium users, use their setting or default to false
           const shouldAutoSave =
-            userData.subscriptionPlan === "Free"
+            userData.subscriptionPlan?.toLowerCase() === "free"
               ? true
               : (userData.autoSaveEnabled ?? false);
           setAutoSaveEnabled(shouldAutoSave);
@@ -61,7 +61,7 @@ const Result = ({ prediction, formData, error }) => {
     const shouldAutoSave =
       prediction &&
       !isSaved &&
-      (userType === "Free" || (userType !== "Free" && autoSaveEnabled));
+      (userType === "free" || (userType !== "free" && autoSaveEnabled));
 
     if (shouldAutoSave) {
       handleSaveResult(true); // Pass true to indicate this is an auto-save
@@ -432,7 +432,7 @@ const Result = ({ prediction, formData, error }) => {
           </div>
 
           {/* Save Button */}
-          {userType !== "Free" && !autoSaveEnabled && !isSaved && (
+          {userType !== "free" && !autoSaveEnabled && !isSaved && (
             <button
               onClick={() => handleSaveResult(false)}
               disabled={isSaving}
