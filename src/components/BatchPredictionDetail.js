@@ -58,34 +58,56 @@ class ErrorBoundary extends React.Component {
 }
 
 const SummaryView = ({ data }) => {
-  const { batchData, chunks } = data;
+  const { batchData, predictions } = data;
   const [showHighRiskList, setShowHighRiskList] = useState(false);
   const [showMediumRiskList, setShowMediumRiskList] = useState(false);
   const [showLowRiskList, setShowLowRiskList] = useState(false);
 
-  // Calculate metrics
-  const totalRecords = chunks.length;
-  const highRiskCustomers = chunks.filter((p) => p.churnProbability > 0.7);
-  const mediumRiskCustomers = chunks.filter(
-    (p) => p.churnProbability > 0.3 && p.churnProbability <= 0.7
-  );
-  const lowRiskCustomers = chunks.filter((p) => p.churnProbability <= 0.3);
-  const churnCount = chunks.filter((p) => p.prediction === 1).length;
-  const stayCount = totalRecords - churnCount;
-  const churnPercentage = ((churnCount / totalRecords) * 100).toFixed(1);
-  const customerHealthScore = (
-    ((lowRiskCustomers.length + mediumRiskCustomers.length * 0.5) /
-      totalRecords) *
-    100
-  ).toFixed(1);
-  const retentionRateTarget = Math.min(95, 100 - parseFloat(churnPercentage));
-  const actionPriorityScore = Math.min(
-    100,
-    Math.round(
-      (highRiskCustomers.length / totalRecords) * 100 +
-        (mediumRiskCustomers.length / totalRecords) * 50
-    )
-  );
+  // Calculate metrics using useMemo to optimize performance
+  const metrics = useMemo(() => {
+    const totalRecords = predictions.length;
+    const highRiskCustomers = predictions.filter(
+      (p) => parseFloat(p.churnProbability) > 0.7
+    );
+    const mediumRiskCustomers = predictions.filter(
+      (p) =>
+        parseFloat(p.churnProbability) > 0.3 &&
+        parseFloat(p.churnProbability) <= 0.7
+    );
+    const lowRiskCustomers = predictions.filter(
+      (p) => parseFloat(p.churnProbability) <= 0.3
+    );
+    const churnCount = predictions.filter(
+      (p) => p.prediction === 1 || parseFloat(p.churnProbability) > 0.5
+    ).length;
+    const stayCount = totalRecords - churnCount;
+
+    return {
+      totalRecords,
+      highRiskCustomers,
+      mediumRiskCustomers,
+      lowRiskCustomers,
+      churnCount,
+      stayCount,
+      churnPercentage: ((churnCount / totalRecords) * 100).toFixed(1),
+      customerHealthScore: (
+        ((lowRiskCustomers.length + mediumRiskCustomers.length * 0.5) /
+          totalRecords) *
+        100
+      ).toFixed(1),
+      retentionRateTarget: Math.min(
+        95,
+        100 - (churnCount / totalRecords) * 100
+      ).toFixed(1),
+      actionPriorityScore: Math.min(
+        100,
+        Math.round(
+          (highRiskCustomers.length / totalRecords) * 100 +
+            (mediumRiskCustomers.length / totalRecords) * 50
+        )
+      ),
+    };
+  }, [predictions]);
 
   const renderHighRiskList = () => (
     <div className="mb-4 overflow-auto max-h-60 bg-white rounded border border-red-200 p-2">
@@ -104,7 +126,7 @@ const SummaryView = ({ data }) => {
           </tr>
         </thead>
         <tbody className="divide-y divide-red-200">
-          {highRiskCustomers.map((customer, index) => (
+          {metrics.highRiskCustomers.map((customer, index) => (
             <tr key={customer.customerID}>
               <td className="px-3 py-2 text-sm text-gray-900">
                 {customer.customerID}
@@ -139,7 +161,7 @@ const SummaryView = ({ data }) => {
           </tr>
         </thead>
         <tbody className="divide-y divide-yellow-200">
-          {mediumRiskCustomers.map((customer) => (
+          {metrics.mediumRiskCustomers.map((customer) => (
             <tr key={customer.customerID}>
               <td className="px-3 py-2 text-sm text-gray-900">
                 {customer.customerID}
@@ -174,7 +196,7 @@ const SummaryView = ({ data }) => {
           </tr>
         </thead>
         <tbody className="divide-y divide-green-200">
-          {lowRiskCustomers.map((customer) => (
+          {metrics.lowRiskCustomers.map((customer) => (
             <tr key={customer.customerID}>
               <td className="px-3 py-2 text-sm text-gray-900">
                 {customer.customerID}
@@ -214,7 +236,7 @@ const SummaryView = ({ data }) => {
             Company Overview
           </h3>
           <span className="text-sm bg-white/20 px-3 py-1 rounded-full">
-            Last Updated: {new Date().toLocaleDateString()}
+            Last Updated: {new Date(batchData.timestamp).toLocaleDateString()}
           </span>
         </div>
 
@@ -223,11 +245,12 @@ const SummaryView = ({ data }) => {
           <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
             <h4 className="text-white/80 text-sm mb-1">Customer Base</h4>
             <p className="text-2xl font-bold">
-              {totalRecords.toLocaleString()}
+              {metrics.totalRecords.toLocaleString()}
             </p>
             <div className="mt-2 text-sm">
               <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-100">
-                {((stayCount / totalRecords) * 100).toFixed(1)}% Retention Rate
+                {((metrics.stayCount / metrics.totalRecords) * 100).toFixed(1)}%
+                Retention Rate
               </span>
             </div>
           </div>
@@ -236,7 +259,11 @@ const SummaryView = ({ data }) => {
           <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
             <h4 className="text-white/80 text-sm mb-1">Risk Profile</h4>
             <p className="text-2xl font-bold">
-              {((highRiskCustomers.length / totalRecords) * 100).toFixed(1)}%
+              {(
+                (metrics.highRiskCustomers.length / metrics.totalRecords) *
+                100
+              ).toFixed(1)}
+              %
             </p>
             <div className="mt-2 text-sm">
               <span className="px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-100">
@@ -248,7 +275,9 @@ const SummaryView = ({ data }) => {
           {/* Potential Impact */}
           <div className="bg-white/10 rounded-lg p-4 backdrop-blur-sm">
             <h4 className="text-white/80 text-sm mb-1">Potential Impact</h4>
-            <p className="text-2xl font-bold">{Math.round(churnCount * 0.6)}</p>
+            <p className="text-2xl font-bold">
+              {Math.round(metrics.churnCount * 0.6)}
+            </p>
             <div className="mt-2 text-sm">
               <span className="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-100">
                 Recoverable Customers
@@ -267,11 +296,13 @@ const SummaryView = ({ data }) => {
             <div className="space-y-3">
               <div>
                 <div className="flex justify-between text-sm mb-1">
-                  <span>High Value Customers</span>
+                  <span>High Risk Customers</span>
                   <span>
-                    {((highRiskCustomers.length / totalRecords) * 100).toFixed(
-                      1
-                    )}
+                    {(
+                      (metrics.highRiskCustomers.length /
+                        metrics.totalRecords) *
+                      100
+                    ).toFixed(1)}
                     %
                   </span>
                 </div>
@@ -279,17 +310,18 @@ const SummaryView = ({ data }) => {
                   <div
                     className="bg-red-500 h-2 rounded-full"
                     style={{
-                      width: `${(highRiskCustomers.length / totalRecords) * 100}%`,
+                      width: `${(metrics.highRiskCustomers.length / metrics.totalRecords) * 100}%`,
                     }}
                   />
                 </div>
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-1">
-                  <span>At-Risk Customers</span>
+                  <span>Medium Risk Customers</span>
                   <span>
                     {(
-                      (mediumRiskCustomers.length / totalRecords) *
+                      (metrics.mediumRiskCustomers.length /
+                        metrics.totalRecords) *
                       100
                     ).toFixed(1)}
                     %
@@ -299,26 +331,27 @@ const SummaryView = ({ data }) => {
                   <div
                     className="bg-yellow-500 h-2 rounded-full"
                     style={{
-                      width: `${(mediumRiskCustomers.length / totalRecords) * 100}%`,
+                      width: `${(metrics.mediumRiskCustomers.length / metrics.totalRecords) * 100}%`,
                     }}
                   />
                 </div>
               </div>
               <div>
                 <div className="flex justify-between text-sm mb-1">
-                  <span>Critical Attention Needed</span>
+                  <span>Low Risk Customers</span>
                   <span>
-                    {((highRiskCustomers.length / totalRecords) * 100).toFixed(
-                      1
-                    )}
+                    {(
+                      (metrics.lowRiskCustomers.length / metrics.totalRecords) *
+                      100
+                    ).toFixed(1)}
                     %
                   </span>
                 </div>
-                <div className="w-full bg-red-200/20 rounded-full h-2">
+                <div className="w-full bg-green-200/20 rounded-full h-2">
                   <div
-                    className="bg-red-500 h-2 rounded-full"
+                    className="bg-green-500 h-2 rounded-full"
                     style={{
-                      width: `${(highRiskCustomers.length / totalRecords) * 100}%`,
+                      width: `${(metrics.lowRiskCustomers.length / metrics.totalRecords) * 100}%`,
                     }}
                   />
                 </div>
@@ -337,7 +370,7 @@ const SummaryView = ({ data }) => {
                   <span className="text-sm">Customer Health Score</span>
                   <div className="flex items-center">
                     <span className="text-lg font-semibold">
-                      {customerHealthScore}%
+                      {metrics.customerHealthScore}%
                     </span>
                     <svg
                       className="w-4 h-4 ml-1 text-green-400"
@@ -360,7 +393,7 @@ const SummaryView = ({ data }) => {
                   <span className="text-sm">Retention Rate Target</span>
                   <div className="flex items-center">
                     <span className="text-lg font-semibold">
-                      {retentionRateTarget}%
+                      {metrics.retentionRateTarget}%
                     </span>
                     <svg
                       className="w-4 h-4 ml-1 text-blue-400"
@@ -383,7 +416,7 @@ const SummaryView = ({ data }) => {
                   <span className="text-sm">Action Priority Score</span>
                   <div className="flex items-center">
                     <span className="text-lg font-semibold">
-                      {actionPriorityScore}%
+                      {metrics.actionPriorityScore}%
                     </span>
                     <svg
                       className="w-4 h-4 ml-1 text-yellow-400"
@@ -441,7 +474,7 @@ const SummaryView = ({ data }) => {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
                   <span className="px-2 py-1 bg-red-200 text-red-800 rounded text-sm font-medium">
-                    High Risk - {highRiskCustomers.length} Customers
+                    High Risk - {metrics.highRiskCustomers.length} Customers
                   </span>
                   <span className="ml-2 text-sm text-red-600">
                     Requires immediate intervention
@@ -472,7 +505,8 @@ const SummaryView = ({ data }) => {
                   </svg>
                   <div>
                     <p className="font-medium">
-                      Contact {highRiskCustomers.length} high-risk customers:
+                      Contact {metrics.highRiskCustomers.length} high-risk
+                      customers:
                     </p>
                     <ul className="ml-6 mt-1 list-disc text-gray-600">
                       <li>
@@ -481,7 +515,8 @@ const SummaryView = ({ data }) => {
                       </li>
                       <li>
                         Priority outreach to top{" "}
-                        {Math.min(100, highRiskCustomers.length)} customers
+                        {Math.min(100, metrics.highRiskCustomers.length)}{" "}
+                        customers
                       </li>
                       <li>Document all customer feedback for analysis</li>
                     </ul>
@@ -508,7 +543,7 @@ const SummaryView = ({ data }) => {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
                   <span className="px-2 py-1 bg-yellow-200 text-yellow-800 rounded text-sm font-medium">
-                    Medium Risk - {mediumRiskCustomers.length} Customers
+                    Medium Risk - {metrics.mediumRiskCustomers.length} Customers
                   </span>
                   <span className="ml-2 text-sm text-yellow-600">
                     Monitor and engage
@@ -539,8 +574,8 @@ const SummaryView = ({ data }) => {
                   </svg>
                   <div>
                     <p className="font-medium">
-                      Engagement campaign for {mediumRiskCustomers.length}{" "}
-                      at-risk customers:
+                      Engagement campaign for{" "}
+                      {metrics.mediumRiskCustomers.length} at-risk customers:
                     </p>
                     <ul className="ml-6 mt-1 list-disc text-gray-600">
                       <li>Send personalized satisfaction surveys</li>
@@ -570,7 +605,7 @@ const SummaryView = ({ data }) => {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
                   <span className="px-2 py-1 bg-green-200 text-green-800 rounded text-sm font-medium">
-                    Low Risk - {lowRiskCustomers.length} Customers
+                    Low Risk - {metrics.lowRiskCustomers.length} Customers
                   </span>
                   <span className="ml-2 text-sm text-green-600">
                     Maintain satisfaction
@@ -618,23 +653,23 @@ const SummaryView = ({ data }) => {
 };
 
 const TableView = ({ data }) => {
-  const { chunks } = data;
+  const { batchData, predictions } = data;
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState("churnProbability");
   const [sortDirection, setSortDirection] = useState("desc");
 
   // Memoized sorted data
   const sortedData = useMemo(() => {
-    const sorted = [...chunks].sort((a, b) => {
+    const sorted = [...predictions].sort((a, b) => {
       const aValue = a[sortField];
       const bValue = b[sortField];
       return sortDirection === "asc" ? aValue - bValue : bValue - aValue;
     });
     return sorted;
-  }, [chunks, sortField, sortDirection]);
+  }, [predictions, sortField, sortDirection]);
 
   // Pagination calculations
-  const totalPages = Math.ceil(chunks.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(predictions.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = startIndex + ITEMS_PER_PAGE;
   const currentData = sortedData.slice(startIndex, endIndex);
@@ -821,16 +856,16 @@ const TableView = ({ data }) => {
 };
 
 const ChartsView = ({ data }) => {
-  const { chunks } = data;
+  const { batchData, predictions } = data;
 
   // Calculate metrics
-  const totalRecords = chunks.length;
-  const highRiskCustomers = chunks.filter((p) => p.churnProbability > 0.7);
-  const mediumRiskCustomers = chunks.filter(
+  const totalRecords = predictions.length;
+  const highRiskCustomers = predictions.filter((p) => p.churnProbability > 0.7);
+  const mediumRiskCustomers = predictions.filter(
     (p) => p.churnProbability > 0.3 && p.churnProbability <= 0.7
   );
-  const lowRiskCustomers = chunks.filter((p) => p.churnProbability <= 0.3);
-  const churnCount = chunks.filter((p) => p.prediction === 1).length;
+  const lowRiskCustomers = predictions.filter((p) => p.churnProbability <= 0.3);
+  const churnCount = predictions.filter((p) => p.prediction === 1).length;
   const stayCount = totalRecords - churnCount;
   const churnPercentage = (churnCount / totalRecords) * 100;
 
@@ -929,7 +964,7 @@ const ChartsView = ({ data }) => {
         </h3>
         <div className="space-y-6">
           {(() => {
-            const riskFactors = chunks.reduce((acc, pred) => {
+            const riskFactors = predictions.reduce((acc, pred) => {
               if (pred.churnProbability > 0.5) {
                 const factors = [];
                 if (pred.formData?.SatisfactionScore <= 2)
@@ -956,7 +991,7 @@ const ChartsView = ({ data }) => {
               return acc;
             }, {});
 
-            const highRiskCount = chunks.filter(
+            const highRiskCount = predictions.filter(
               (p) => p.churnProbability > 0.7
             ).length;
 
@@ -1008,7 +1043,14 @@ const ChartsView = ({ data }) => {
 const BatchPredictionDetail = () => {
   const [userSubscription, setUserSubscription] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [batchData, setBatchData] = useState(null);
+  const [predictions, setPredictions] = useState([]);
+  const [viewMode, setViewMode] = useState("summary");
   const navigate = useNavigate();
+  const { id } = useParams();
 
   // Check user's subscription status
   useEffect(() => {
@@ -1037,44 +1079,6 @@ const BatchPredictionDetail = () => {
 
     checkSubscription();
   }, [navigate]);
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
-      </div>
-    );
-  }
-
-  if (userSubscription !== "Gold") {
-    return (
-      <div className="p-8 text-center">
-        <div className="mb-6">
-          <FaCheckCircle className="text-6xl text-[#1d5a7b] mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            Gold Subscription Required
-          </h2>
-          <p className="text-gray-600 mb-6">
-            This feature is exclusively available for Gold subscribers.
-          </p>
-          <button
-            onClick={() => navigate("/account")}
-            className="bg-[#1d5a7b] text-white px-6 py-2 rounded-md hover:bg-[#164e68] transition-colors"
-          >
-            Upgrade to Gold
-          </button>
-        </div>
-      </div>
-    );
-  }
-  const [hasAccess, setHasAccess] = useState(false);
-  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
-  const { id } = useParams();
-  // Removed duplicate 'const navigate = useNavigate();' declaration here
-  const [loading, setLoading] = useState(true);
-  const [batchData, setBatchData] = useState(null);
-  const [chunks, setChunks] = useState([]);
-  const [viewMode, setViewMode] = useState("summary");
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -1155,40 +1159,60 @@ const BatchPredictionDetail = () => {
           return;
         }
 
-        setBatchData(batchDoc.data());
+        const mainData = {
+          id: batchDoc.id,
+          ...batchDoc.data(),
+          timestamp: batchDoc.data().timestamp?.toDate() || new Date(),
+        };
 
+        setBatchData(mainData);
+
+        // Get the predictions from the main document if they exist
+        if (mainData.predictions) {
+          setPredictions(mainData.predictions);
+          setLoading(false);
+          return;
+        }
+
+        // Otherwise, fetch from chunks
         const chunksRef = collection(batchRef, "chunks");
         const chunksQuery = query(chunksRef, orderBy("chunkIndex"));
         const chunksSnapshot = await getDocs(chunksQuery);
 
-        const allChunks = [];
-        chunksSnapshot.forEach((doc) => {
-          allChunks.push(...doc.data().predictions);
-        });
-        setChunks(allChunks);
+        const allPredictions = chunksSnapshot.docs
+          .sort((a, b) => a.data().chunkIndex - b.data().chunkIndex)
+          .flatMap((doc) => doc.data().predictions || []);
+
+        setPredictions(allPredictions);
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching batch details:", error);
         toast.error("Failed to load batch prediction details");
-      } finally {
         setLoading(false);
       }
     };
 
-    fetchBatchDetails();
-  }, [id, navigate]);
+    if (hasAccess) {
+      fetchBatchDetails();
+    }
+  }, [id, navigate, hasAccess]);
 
   const handleDownloadCSV = useCallback(() => {
+    if (!predictions.length) return;
+
     const headers = [
       "CustomerID",
       "Prediction",
       "Churn Probability",
+      "Stay Probability",
       "Risk Level",
-      "Status",
+      "Confidence Score",
+      "Risk Factors",
     ];
 
     const csvRows = [
       headers.join(","),
-      ...chunks.map((p) => {
+      ...predictions.map((p) => {
         const riskLevel =
           p.churnProbability > 0.7
             ? "High"
@@ -1199,9 +1223,11 @@ const BatchPredictionDetail = () => {
         return [
           p.customerID,
           p.prediction === 1 ? "Will Churn" : "Will Stay",
-          (p.churnProbability * 100).toFixed(1) + "%",
+          p.churnProbability.toFixed(3),
+          (1 - p.churnProbability).toFixed(3),
           riskLevel,
-          "Processed",
+          p.confidence_score?.toFixed(1) || "N/A",
+          p.risk_factors?.join("; ") || "None",
         ].join(",");
       }),
     ].join("\n");
@@ -1211,11 +1237,44 @@ const BatchPredictionDetail = () => {
     const a = document.createElement("a");
     a.setAttribute("hidden", "");
     a.setAttribute("href", url);
-    a.setAttribute("download", `batch_prediction_${id}_results.csv`);
+    a.setAttribute(
+      "download",
+      `${batchData.fileName || "batch_prediction"}_results.csv`
+    );
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  }, [chunks, id]);
+  }, [predictions, batchData]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+      </div>
+    );
+  }
+
+  if (userSubscription !== "Gold") {
+    return (
+      <div className="p-8 text-center">
+        <div className="mb-6">
+          <FaCheckCircle className="text-6xl text-[#1d5a7b] mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Gold Subscription Required
+          </h2>
+          <p className="text-gray-600 mb-6">
+            This feature is exclusively available for Gold subscribers.
+          </p>
+          <button
+            onClick={() => navigate("/account")}
+            className="bg-[#1d5a7b] text-white px-6 py-2 rounded-md hover:bg-[#164e68] transition-colors"
+          >
+            Upgrade to Gold
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading || isCheckingAccess) {
     return (
@@ -1252,7 +1311,7 @@ const BatchPredictionDetail = () => {
     );
   }
 
-  if (!batchData) {
+  if (!batchData || !predictions.length) {
     return (
       <div className="min-h-screen flex justify-center items-center">
         <div className="text-center">
@@ -1291,20 +1350,19 @@ const BatchPredictionDetail = () => {
                 </h1>
                 <p className="text-gray-600">File: {batchData.fileName}</p>
                 <p className="text-gray-600">
-                  Processed on:{" "}
-                  {new Date(batchData.saveTimestamp).toLocaleString()}
+                  Processed on: {new Date(batchData.timestamp).toLocaleString()}
                 </p>
               </div>
               <div className="flex gap-4">
                 <button
                   onClick={handleDownloadCSV}
-                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors"
                 >
                   <FaDownload className="mr-2" /> Download CSV
                 </button>
                 <button
                   onClick={() => navigate("/account")}
-                  className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="bg-gray-100 text-gray-600 px-4 py-2 rounded-full hover:bg-gray-200 transition-colors"
                 >
                   Back to Account
                 </button>
@@ -1330,7 +1388,7 @@ const BatchPredictionDetail = () => {
 
             {/* Content based on view mode */}
             <div className="mt-6">
-              <CurrentView data={{ batchData, chunks }} />
+              <CurrentView data={{ batchData, predictions }} />
             </div>
           </div>
         </div>
