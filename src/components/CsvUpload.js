@@ -29,6 +29,17 @@ const ALLOWED_MIME_TYPES = ["text/csv", "application/vnd.ms-excel"];
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
 
+// Add this helper at the top of the component
+function hasPremiumAccess(userData) {
+  if (!userData) return false;
+  if (userData.subscriptionPlan === "gold") return true;
+  if (userData.subscriptionPlan === "trial") {
+    const trialEnd = userData.trialEndDate?.toDate?.() || userData.trialEndDate;
+    return trialEnd && new Date(trialEnd) > new Date();
+  }
+  return false;
+}
+
 const CsvUpload = () => {
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -268,21 +279,9 @@ const CsvUpload = () => {
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          // Only allow access if user has Gold or valid trial
-          if (userData.subscriptionPlan === "gold") {
+          // Use hasPremiumAccess helper for access check
+          if (hasPremiumAccess(userData)) {
             setHasAccess(true);
-          } else if (userData.subscriptionPlan === "trial") {
-            const trialEnd =
-              userData.trialEndDate?.toDate?.() || userData.trialEndDate;
-            if (trialEnd && new Date(trialEnd) > new Date()) {
-              setHasAccess(true);
-            } else {
-              setHasAccess(false);
-              toast.error(
-                "Your trial has expired. Please upgrade to continue using batch predictions."
-              );
-              navigate("/account");
-            }
           } else {
             setHasAccess(false);
             toast.error(

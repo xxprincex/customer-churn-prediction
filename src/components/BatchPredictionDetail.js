@@ -1040,6 +1040,16 @@ const ChartsView = ({ data }) => {
   );
 };
 
+function hasPremiumAccess(userData) {
+  if (!userData) return false;
+  if (userData.subscriptionPlan === "gold") return true;
+  if (userData.subscriptionPlan === "trial") {
+    const trialEnd = userData.trialEndDate?.toDate?.() || userData.trialEndDate;
+    return trialEnd && new Date(trialEnd) > new Date();
+  }
+  return false;
+}
+
 const BatchPredictionDetail = () => {
   const [userSubscription, setUserSubscription] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1096,21 +1106,8 @@ const BatchPredictionDetail = () => {
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          // Accept access if gold or trial and trialEndDate is valid
-          if (userData.subscriptionPlan === "gold") {
+          if (hasPremiumAccess(userData)) {
             setHasAccess(true);
-          } else if (userData.subscriptionPlan === "trial") {
-            const trialEnd =
-              userData.trialEndDate?.toDate?.() || userData.trialEndDate;
-            if (trialEnd && new Date(trialEnd) > new Date()) {
-              setHasAccess(true);
-            } else {
-              setHasAccess(false);
-              toast.error(
-                "Your trial has expired. Please upgrade to continue viewing batch predictions."
-              );
-              navigate("/account");
-            }
           } else {
             setHasAccess(false);
             toast.error(

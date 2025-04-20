@@ -59,7 +59,7 @@ const generateCustomerId = async () => {
 
 const Prediction = () => {
   const [showCsvUpload, setShowCsvUpload] = useState(false);
-  const [isGoldSubscriber, setIsGoldSubscriber] = useState(false);
+  const [hasPremiumAccess, setHasPremiumAccess] = useState(false);
   const [dailyPredictions, setDailyPredictions] = useState(0);
   const [lastPredictionDate, setLastPredictionDate] = useState(null);
 
@@ -74,7 +74,16 @@ const Prediction = () => {
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          setIsGoldSubscriber(userData.subscriptionPlan === "gold");
+
+          // Premium if gold or valid trial
+          let premium = false;
+          if (userData.subscriptionPlan === "gold") premium = true;
+          if (userData.subscriptionPlan === "trial") {
+            const trialEnd =
+              userData.trialEndDate?.toDate?.() || userData.trialEndDate;
+            if (trialEnd && new Date(trialEnd) > new Date()) premium = true;
+          }
+          setHasPremiumAccess(premium);
 
           // Check and reset daily predictions if needed
           const today = new Date().toDateString();
@@ -234,9 +243,9 @@ const Prediction = () => {
     }
 
     // Check daily prediction limit for free users
-    if (!isGoldSubscriber && dailyPredictions >= 20) {
+    if (!hasPremiumAccess && dailyPredictions >= 20) {
       toast.error(
-        "You've reached your daily prediction limit (20). Upgrade to Gold for unlimited predictions!",
+        "You've reached your daily prediction limit (20). Upgrade to Premium for unlimited predictions!",
         {
           position: "top-center",
           autoClose: 5000,
@@ -434,7 +443,7 @@ const Prediction = () => {
       setPrediction(formattedPrediction);
 
       // Update daily prediction count for free users
-      if (!isGoldSubscriber) {
+      if (!hasPremiumAccess) {
         const today = new Date().toDateString();
         const newCount =
           today === lastPredictionDate ? dailyPredictions + 1 : 1;
@@ -451,7 +460,7 @@ const Prediction = () => {
 
         if (newCount >= 15) {
           toast.info(
-            `You have ${20 - newCount} predictions remaining today. Consider upgrading to Gold for unlimited predictions!`,
+            `You have ${20 - newCount} predictions remaining today. Consider upgrading to Premium for unlimited predictions!`,
             {
               position: "top-center",
               autoClose: 3000,
@@ -515,7 +524,7 @@ const Prediction = () => {
   return (
     <div className="min-h-screen pt-48 px-4">
       {/* Toggle buttons for prediction type */}
-      {isGoldSubscriber && (
+      {hasPremiumAccess && (
         <div className="mb-8 flex justify-center gap-4">
           <button
             className={`px-6 py-3 rounded-lg font-medium transition-all ${
@@ -764,7 +773,7 @@ const Prediction = () => {
                     >
                       <path
                         fillRule="evenodd"
-                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 1.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
                         clipRule="evenodd"
                       />
                     </svg>
