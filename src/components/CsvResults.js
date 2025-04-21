@@ -2275,7 +2275,7 @@ const CsvResults = ({ results, fileName }) => {
               <FaDownload className="mr-2" /> Download CSV
             </button>
             <button
-              onClick={() => navigate("/csv-upload")}
+              onClick={() => navigate("/prediction?batch=1")}
               className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-full shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#1d5a7b]"
             >
               Upload Another File
