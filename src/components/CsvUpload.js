@@ -55,6 +55,7 @@ const CsvUpload = () => {
     missingValues: {},
     invalidValues: {},
     type: null,
+    imputationStats: null,
   });
   const [showValidationDetails, setShowValidationDetails] = useState(false);
   const fileInputRef = useRef(null);
@@ -106,9 +107,49 @@ const CsvUpload = () => {
     "CashbackAmount",
   ];
 
+  // Add this function after the numericColumns declaration
+  const handleMissingValues = (data) => {
+    // Calculate medians for numeric columns
+    const medians = {};
+    const imputationStats = {};
+
+    numericColumns.forEach((column) => {
+      const validValues = data
+        .map((row) => parseFloat(row[column]))
+        .filter((val) => !isNaN(val));
+
+      if (validValues.length > 0) {
+        validValues.sort((a, b) => a - b);
+        const mid = Math.floor(validValues.length / 2);
+        medians[column] =
+          validValues.length % 2 === 0
+            ? (validValues[mid - 1] + validValues[mid]) / 2
+            : validValues[mid];
+      }
+      imputationStats[column] = 0;
+    });
+
+    // Fill missing values with medians and track imputation counts
+    const processedData = data.map((row) => {
+      const newRow = { ...row };
+      numericColumns.forEach((column) => {
+        if (
+          !row[column] ||
+          row[column].toString().trim() === "" ||
+          isNaN(parseFloat(row[column]))
+        ) {
+          newRow[column] = medians[column];
+          imputationStats[column]++;
+        }
+      });
+      return newRow;
+    });
+
+    return { processedData, imputationStats };
+  };
+
   // Enhanced file validation
   const validateFile = async (file) => {
-    // Reset validation status
     setValidationStatus({
       isValid: false,
       message: "",
@@ -116,9 +157,9 @@ const CsvUpload = () => {
       missingValues: {},
       invalidValues: {},
       type: null,
+      imputationStats: null,
     });
 
-    // Check file size
     if (file.size > MAX_FILE_SIZE) {
       setValidationStatus({
         isValid: false,
@@ -128,7 +169,6 @@ const CsvUpload = () => {
       return false;
     }
 
-    // Check file type
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
       setValidationStatus({
         isValid: false,
@@ -146,7 +186,6 @@ const CsvUpload = () => {
           try {
             const { data, errors, meta } = results;
 
-            // Check for parsing errors
             if (errors.length > 0) {
               setValidationStatus({
                 isValid: false,
@@ -157,7 +196,6 @@ const CsvUpload = () => {
               return;
             }
 
-            // Check for empty file
             if (data.length === 0) {
               setValidationStatus({
                 isValid: false,
@@ -168,14 +206,12 @@ const CsvUpload = () => {
               return;
             }
 
-            // Initialize validation tracking
-            const duplicateIds = new Set();
-            const missingValues = {};
-            const invalidValues = {};
-            const seenIds = new Set();
+            // Process missing values first
+            const { processedData, imputationStats } =
+              handleMissingValues(data);
 
-            // Validate headers
-            const headers = Object.keys(data[0]);
+            // Check for required headers
+            const headers = Object.keys(processedData[0]);
             const missingHeaders = requiredHeaders.filter(
               (header) => !headers.includes(header)
             );
@@ -190,54 +226,20 @@ const CsvUpload = () => {
               return;
             }
 
-            // Validate each row
-            data.forEach((row, index) => {
-              // Check for duplicate IDs
-              const customerId = row.CustomerID;
-              if (customerId) {
-                if (seenIds.has(customerId)) {
-                  duplicateIds.add(customerId);
-                } else {
-                  seenIds.add(customerId);
-                }
-              }
-
-              // Check for missing and invalid values
-              requiredHeaders.forEach((header) => {
-                const value = row[header];
-                if (!value || value.toString().trim() === "") {
-                  if (!missingValues[header]) {
-                    missingValues[header] = [];
-                  }
-                  missingValues[header].push(index + 1);
-                } else if (numericColumns.includes(header)) {
-                  // Validate numeric fields
-                  const num = parseFloat(value);
-                  if (isNaN(num)) {
-                    if (!invalidValues[header]) {
-                      invalidValues[header] = [];
-                    }
-                    invalidValues[header].push(index + 1);
-                  }
-                }
-              });
-            });
-
-            // Set validation status
-            const hasIssues =
-              duplicateIds.size > 0 ||
-              Object.keys(missingValues).length > 0 ||
-              Object.keys(invalidValues).length > 0;
+            // Set validation status with imputation information
+            const totalImputations = Object.values(imputationStats).reduce(
+              (a, b) => a + b,
+              0
+            );
 
             setValidationStatus({
               isValid: true,
-              message: hasIssues
-                ? "File validated with warnings"
-                : "File is valid",
-              type: hasIssues ? "warning" : "success",
-              duplicates: Array.from(duplicateIds),
-              missingValues,
-              invalidValues,
+              message:
+                totalImputations > 0
+                  ? `File is valid. ${totalImputations} missing values will be automatically filled.`
+                  : "File is valid",
+              type: "success",
+              imputationStats,
             });
 
             resolve(true);
@@ -405,7 +407,7 @@ const CsvUpload = () => {
     toast.success("Template downloaded successfully");
   };
 
-  // Enhanced upload function with retry mechanism
+  // Modify the handleUpload function to use the missing value handler
   const handleUpload = async () => {
     if (!file) {
       toast.error("Please select a file first");
@@ -427,7 +429,11 @@ const CsvUpload = () => {
         });
       });
 
-      const csvData = parseResult.data;
+      let csvData = parseResult.data;
+
+      // Handle missing values before processing
+      csvData = handleMissingValues(csvData).processedData;
+      toast.info("Missing values have been filled with median values");
 
       // Process data in batches of 1000
       const BATCH_SIZE = 1000;
@@ -580,6 +586,7 @@ const CsvUpload = () => {
       missingValues: {},
       invalidValues: {},
       type: null,
+      imputationStats: null,
     });
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -622,19 +629,35 @@ const CsvUpload = () => {
         </button>
       </div>
 
-      {showValidationDetails && (
-        <div className="space-y-2">
-          <div className="flex items-center">
-            {validationStatus.type === null ? (
-              <FaInfoCircle className="text-gray-400 w-5 h-5 mr-2" />
-            ) : validationStatus.type === "success" ? (
-              <FaCheckCircle className="text-green-500 w-5 h-5 mr-2" />
-            ) : (
-              <FaTimesCircle className="text-red-500 w-5 h-5 mr-2" />
-            )}
-            <span className="text-sm text-gray-600">
-              {validationStatus.message}
-            </span>
+      <div className="flex items-center">
+        {validationStatus.type === "success" ? (
+          <FaCheckCircle className="text-green-500 w-5 h-5 mr-2" />
+        ) : validationStatus.type === "error" ? (
+          <FaTimesCircle className="text-red-500 w-5 h-5 mr-2" />
+        ) : (
+          <FaInfoCircle className="text-blue-500 w-5 h-5 mr-2" />
+        )}
+        <span className="text-sm text-gray-600">
+          {validationStatus.message}
+        </span>
+      </div>
+
+      {showValidationDetails && validationStatus.imputationStats && (
+        <div className="mt-4">
+          <h5 className="text-sm font-medium text-gray-700 mb-2">
+            Missing Values Summary:
+          </h5>
+          <div className="grid grid-cols-2 gap-4">
+            {Object.entries(validationStatus.imputationStats)
+              .filter(([_, count]) => count > 0)
+              .map(([column, count]) => (
+                <div key={column} className="text-sm">
+                  <span className="font-medium">{column}:</span>{" "}
+                  <span className="text-blue-600">
+                    {count} values will be filled
+                  </span>
+                </div>
+              ))}
           </div>
         </div>
       )}
