@@ -1322,10 +1322,32 @@ const Profile = () => {
 
                       <div className="flex items-center gap-4">
                         {hasPremiumAccess() && (
-                          <Tooltip content="Choose to automatically save all prediction results">
+                          <>
+                            <Tooltip content="Choose to automatically save all prediction results">
+                              <button
+                                onClick={handleAutoSaveToggle}
+                                className={`${autoSaveEnabled ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-700"} text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105`}
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                                Auto-save {autoSaveEnabled ? "ON" : "OFF"}
+                              </button>
+                            </Tooltip>
+
                             <button
-                              onClick={handleAutoSaveToggle}
-                              className={`${autoSaveEnabled ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-700"} text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105`}
+                              onClick={() => navigate("/prediction")}
+                              className="bg-[#1d5a7b] hover:bg-[#164e68] text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105"
                             >
                               <svg
                                 className="w-5 h-5"
@@ -1337,12 +1359,12 @@ const Profile = () => {
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
                                   strokeWidth="2"
-                                  d="M5 13l4 4L19 7"
+                                  d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                                 />
                               </svg>
-                              Auto-save {autoSaveEnabled ? "ON" : "OFF"}
+                              Make Prediction
                             </button>
-                          </Tooltip>
+                          </>
                         )}
                         <button
                           onClick={() => setShowDeleteConfirm(true)}

@@ -685,10 +685,8 @@ const CsvUpload = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm"></div>
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div className="min-h-screen bg-gray-50 pt-8 pb-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white shadow-xl rounded-lg overflow-hidden">
           {!results ? (
             <div className="p-6">
@@ -735,7 +733,7 @@ const CsvUpload = () => {
                   Upload CSV File
                 </label>
                 <div
-                  className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-all duration-200 ${
+                  className={`mt-1 flex flex-col justify-center items-center px-6 pt-5 pb-6 border-2 border-dashed rounded-lg transition-all duration-200 cursor-pointer ${
                     file
                       ? "border-green-300 bg-green-50"
                       : "border-gray-300 hover:border-[#1d5a7b] hover:bg-blue-50"
@@ -747,18 +745,18 @@ const CsvUpload = () => {
                     fileInputRef.current && fileInputRef.current.click()
                   }
                 >
-                  <div className="space-y-2 text-center">
+                  <div className="text-center">
                     {file ? (
                       <>
                         <FaCheckCircle className="mx-auto h-12 w-12 text-green-500" />
-                        <p className="text-sm text-green-600">
+                        <p className="mt-2 text-sm text-green-600">
                           File ready for upload
                         </p>
                       </>
                     ) : (
                       <>
                         <FaFileUpload className="mx-auto h-12 w-12 text-gray-400" />
-                        <p className="text-sm text-gray-600">
+                        <p className="mt-2 text-sm text-gray-600">
                           Drag and drop your CSV file here, or click to browse
                         </p>
                       </>
@@ -771,7 +769,7 @@ const CsvUpload = () => {
                       onChange={handleFileChange}
                       disabled={isUploading}
                     />
-                    <p className="text-xs text-gray-500">CSV up to 5MB</p>
+                    <p className="mt-1 text-xs text-gray-500">CSV up to 5MB</p>
                   </div>
                 </div>
                 {file && (
@@ -790,6 +788,8 @@ const CsvUpload = () => {
                   </div>
                 )}
               </div>
+
+              {validationStatus.message && renderValidationStatus()}
 
               {isUploading && (
                 <div className="mb-6">
