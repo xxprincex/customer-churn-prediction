@@ -340,6 +340,18 @@ const CsvUpload = () => {
     if (!selectedFile) return;
 
     setError(null);
+    setValidationStatus({
+      isValid: false,
+      message: "",
+      duplicates: [],
+      missingValues: {},
+      invalidValues: {},
+      type: null,
+      imputationStats: null,
+    });
+    setResults(null);
+    setUploadProgress(0);
+
     const isValid = await validateFile(selectedFile);
 
     if (isValid) {
