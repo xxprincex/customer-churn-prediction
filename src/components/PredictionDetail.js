@@ -82,7 +82,7 @@ const PredictionDetail = () => {
   }, [predictionId]);
 
   const handleBack = () => {
-    navigate("/Account");
+    navigate(-1); // This will go back to the previous page instead of hardcoding "/Account"
   };
 
   const handleDelete = async () => {
@@ -91,12 +91,13 @@ const PredictionDetail = () => {
 
   const confirmDelete = async () => {
     try {
+      setLoading(true); // Show loading state while deleting
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        setError("You must be logged in to delete prediction");
-        return;
+        throw new Error("You must be logged in to delete prediction");
       }
 
+      // Reference to the prediction document
       const predictionRef = doc(
         db,
         "Users",
@@ -105,13 +106,17 @@ const PredictionDetail = () => {
         predictionId
       );
 
+      // Delete the prediction
       await deleteDoc(predictionRef);
-      navigate("/Account");
+
+      // Navigate back after successful deletion
+      navigate(-1);
     } catch (err) {
       console.error("Error deleting prediction:", err);
-      setError("Failed to delete prediction");
+      setError(err.message || "Failed to delete prediction");
+      setShowConfirmModal(false); // Hide the modal on error
     } finally {
-      setShowConfirmModal(false);
+      setLoading(false);
     }
   };
 
