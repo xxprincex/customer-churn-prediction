@@ -13,7 +13,8 @@ import {
   sendPasswordResetEmail,
   signOut,
 } from "firebase/auth";
-import { auth } from "../firebase";
+import { auth, db } from "../firebase";
+import { doc, updateDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
 
 const pageVariants = {
@@ -86,6 +87,12 @@ const Login = () => {
         return;
       }
 
+      // Update Firestore document's emailVerified field
+      const userDocRef = doc(db, "Users", user.uid);
+      await updateDoc(userDocRef, {
+        emailVerified: true,
+      });
+
       localStorage.setItem(
         "user",
         JSON.stringify({
@@ -96,7 +103,8 @@ const Login = () => {
       );
 
       toast.success("Login successful!");
-      navigate("/Account");
+      // navigate("/account");
+      window.location.href = "/account"; // Redirect to the account page
     } catch (error) {
       if (error.code === "auth/user-not-found") {
         setError("No account registered with this email. Register now!");

@@ -1,14 +1,19 @@
 # Dependencies
-/node_modules
-/functions/node_modules
+node_modules/
+functions/node_modules/
 package-lock.json
 functions/package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 # Production build
-/build
-/dist
-/functions/build
-/functions/dist
+build/
+dist/
+functions/build/
+functions/dist/
+.parcel-cache/
+.next/
+out/
 
 # Environment files
 .env
@@ -17,12 +22,17 @@ functions/package-lock.json
 .env.test.local
 .env.production.local
 .env.*
+stripe.env
 
 # Firebase
 .firebase/
 firebase-debug.log*
 ui-debug.log*
 .runtimeconfig.json
+firebase-debug.log
+serviceAccountKey.json
+*-service-account*.json
+firebase.json
 
 # Python
 __pycache__/
@@ -31,12 +41,37 @@ __pycache__/
 venv/
 .venv/
 *.pyc
+.Python
+env/
+develop-eggs/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Logs
+# ML Model files
+*.pkl
+*.h5
+*.model
+model_classifier.pkl
+models/
+
+# Logs and debugging
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.log
+debug.log
+.pnpm-debug.log*
 
 # IDE
 .idea/
@@ -44,36 +79,70 @@ yarn-error.log*
 *.swp
 *.swo
 .DS_Store
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+*.tmproj
+*.esproj
+.vs/
 
-# Service account keys and secrets
-*-service-account*.json
-serviceAccountKey.json
-
-# Testing
-/coverage
-
-# Misc
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# Distribution / packaging
-dist/
-build/
-*.egg-info/
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
 
-# Admin panel specific
-admin-panel/node_modules/
-admin-panel/dist/
-admin-panel/.parcel-cache/
-admin-panel/.cache/
+# Coverage and test reports
+coverage/
+cypress/videos/
+cypress/screenshots/
+.nyc_output/
 
-/dist
-/.parcel-cache
-/.cache
-/coverage
+# Local development
+.local
+local.properties
+
+# Large media files
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv
+
+# Private/Sensitive data
+serviceAccountKey.json
+*-service-account*.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Stripe
+.stripe/
+
+# Project specific
 files wich are used to generate model_classifier.pkl/
 requirements.txt
 
-# New additions
-/.pnp
-.pnp.js
+# Parcel
+.parcel-cache/
+.parcelrc
+.postcssrc
+
+# Babel
+babel.config.js
+
+# Jest
+jest.config.js

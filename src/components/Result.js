@@ -24,18 +24,17 @@ const Result = ({ prediction, formData, error }) => {
         const user = auth.currentUser;
         if (!user) return;
 
-        const userRef = doc(db, "Users", user.uid);
-        const userDoc = await getDoc(userRef);
-
+        const userDoc = await getDoc(doc(db, "Users", user.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setUserType((userData.subscriptionPlan || "free").toLowerCase());
-          // For Free users, autoSave is always true
-          // For Gold/Premium users, use their setting or default to false
+
+          // Only enable auto-save for gold subscribers if they have turned it on
           const shouldAutoSave =
-            userData.subscriptionPlan?.toLowerCase() === "free"
-              ? true
-              : (userData.autoSaveEnabled ?? false);
+            userData.subscriptionPlan === "gold"
+              ? (userData.autoSaveEnabled ?? false)
+              : true; // Free and trial users always auto-save
+
           setAutoSaveEnabled(shouldAutoSave);
           setIsInitialLoad(false);
         }
@@ -56,17 +55,17 @@ const Result = ({ prediction, formData, error }) => {
     // 1. We have a prediction to save
     // 2. It hasn't been saved yet
     // 3. Either:
-    //    - User is Free (always auto-save)
-    //    - User is Gold/Premium AND has auto-save enabled
+    //    - User is not gold (always auto-save)
+    //    - User is gold AND has auto-save enabled
     const shouldAutoSave =
       prediction &&
       !isSaved &&
-      (userType === "free" || (userType !== "free" && autoSaveEnabled));
+      ((userType !== "gold" && userType !== "") || autoSaveEnabled);
 
     if (shouldAutoSave) {
       handleSaveResult(true); // Pass true to indicate this is an auto-save
     }
-  }, [prediction]); // Only depend on prediction to prevent multiple saves
+  }, [prediction, isSaved, userType, autoSaveEnabled, isInitialLoad]);
 
   const handleSaveResult = async (isAutoSave = false) => {
     if (isSaved) return;

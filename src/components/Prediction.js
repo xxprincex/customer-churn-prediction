@@ -18,6 +18,7 @@ import { AiOutlineQuestionCircle } from "react-icons/ai";
 import Result from "./Result";
 import { auth } from "../firebase";
 import CsvUpload from "./CsvUpload";
+import { useLocation } from "react-router-dom";
 
 // Function to generate a unique customer ID
 const generateCustomerId = async () => {
@@ -58,6 +59,7 @@ const generateCustomerId = async () => {
 };
 
 const Prediction = () => {
+  const location = useLocation();
   const [showCsvUpload, setShowCsvUpload] = useState(false);
   const [hasPremiumAccess, setHasPremiumAccess] = useState(false);
   const [dailyPredictions, setDailyPredictions] = useState(0);
@@ -107,6 +109,14 @@ const Prediction = () => {
 
     checkUserStatus();
   }, []);
+
+  // Automatically show batch prediction if ?batch=1 is in the URL
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("batch") === "1") {
+      setShowCsvUpload(true);
+    }
+  }, [location.search]);
 
   const [formData, setFormData] = useState({
     CustomerID: "",
@@ -550,7 +560,7 @@ const Prediction = () => {
       )}
 
       {showCsvUpload ? (
-        <CsvUpload />
+        <CsvUpload key={location.search} />
       ) : (
         <div className="p-4 shadow-md">
           <div className="relative mb-8">

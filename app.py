@@ -291,32 +291,60 @@ def webhook():
                 print("No customer email found in session.")
                 return jsonify({'error': 'No customer email in session'}), 400
 
-            # Query Firestore for user with this email
+            # Query Firestore with timeout and retry
             users_ref = db.collection('Users')
-            query = users_ref.where('email', '==', customer_email).limit(1)
-            user_docs = query.get()
-            print(f"Number of user docs found: {len(user_docs)}")
+            MAX_RETRIES = 3
+            TIMEOUT = 30  # 30 seconds timeout
 
-            if not user_docs:
-                print(f"No user found with email: {customer_email}")
-                return jsonify({'error': 'User not found'}), 404
+            for attempt in range(MAX_RETRIES):
+                try:
+                    # Get all users to debug
+                    print("Querying all users in Users collection...")
+                    all_users = list(users_ref.stream())
+                    print(f"Total users found: {len(all_users)}")
+                    for user in all_users:
+                        print(f"Found user: {user.id} with data: {user.to_dict()}")
 
-            for user_doc in user_docs:
-                print(f"Updating user doc: {user_doc.id}")
-                now = datetime.now()
-                subscription_end = now + timedelta(days=30)
-                user_doc.reference.update({
-                    'subscriptionPlan': 'gold',
-                    'trialUsed': True,
-                    'trialEndDate': None,
-                    'trialStartDate': None,
-                    'subscriptionStartDate': now,
-                    'subscriptionEndDate': subscription_end,
-                    'lastUpdated': now,
-                    'stripeSessionId': session.get('id')
-                })
-                print(f"Updated subscription for user: {user_doc.id}")
-                return jsonify({'status': 'success', 'message': 'Subscription updated'}), 200
+                    # Query for specific user
+                    query = users_ref.where('email', '==', customer_email)
+                    user_docs = list(query.stream())
+                    print(f"Number of matching users found: {len(user_docs)}")
+
+                    if not user_docs:
+                        print(f"No user found with email: {customer_email}")
+                        return jsonify({'error': 'User not found'}), 404
+
+                    if len(user_docs) > 1:
+                        print(f"Warning: Multiple users found with email: {customer_email}")
+
+                    for user_doc in user_docs:
+                        print(f"Updating user doc: {user_doc.id}")
+                        now = datetime.now()
+                        subscription_end = now + timedelta(days=30)
+                        
+                        update_data = {
+                            'subscriptionPlan': 'gold',
+                            'trialUsed': True,
+                            'trialEndDate': None,
+                            'trialStartDate': None,
+                            'subscriptionStartDate': now,
+                            'subscriptionEndDate': subscription_end,
+                            'lastUpdated': now,
+                            'stripeSessionId': session.get('id')
+                        }
+
+                        # Update document directly without transaction
+                        # (Firestore transactions are atomic by default for single documents)
+                        user_doc.reference.update(update_data)
+                        print(f"Successfully updated user: {user_doc.id}")
+                        return jsonify({'status': 'success', 'message': 'Subscription updated'}), 200
+
+                    break  # Success, exit retry loop
+                except Exception as e:
+                    print(f"Attempt {attempt + 1} failed: {str(e)}")
+                    if attempt == MAX_RETRIES - 1:  # Last attempt
+                        raise
+                    time.sleep(2 ** attempt)  # Exponential backoff
 
         except Exception as e:
             print(f"Error processing checkout session: {str(e)}")
