@@ -270,6 +270,24 @@ const CsvResults = ({ results, fileName }) => {
       return;
     }
 
+    // Check for premium access
+    try {
+      const userRef = doc(db, "Users", auth.currentUser.uid);
+      const userDoc = await getDoc(userRef);
+      const userData = userDoc.data();
+
+      if (userData.subscriptionPlan !== "gold") {
+        toast.error(
+          "Saving batch predictions is only available for Gold subscribers"
+        );
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking subscription:", error);
+      toast.error("Failed to verify subscription status");
+      return;
+    }
+
     if (!predictions.length) {
       toast.error("No predictions to save");
       return;
