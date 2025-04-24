@@ -104,7 +104,7 @@ const Login = () => {
 
       toast.success("Login successful!");
       // navigate("/account");
-      window.location.href = "/account"; // Redirect to the account page
+      window.location.href = "/"; // Redirect to the account page
     } catch (error) {
       if (error.code === "auth/user-not-found") {
         setError("No account registered with this email. Register now!");
