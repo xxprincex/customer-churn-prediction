@@ -268,7 +268,7 @@ const Tooltip = ({ children, content }) => {
   );
 };
 
-const Profile = () => {
+const Account = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [predictions, setPredictions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1108,6 +1108,37 @@ const Profile = () => {
     </div>
   );
 
+  // Add effect to handle prediction history visibility
+  useEffect(() => {
+    const handleHistoryNavigation = async () => {
+      if (location.state?.showPredictions) {
+        setShowPredictions(true);
+        await fetchPredictionHistory();
+
+        // Clear the state after using it
+        window.history.replaceState({}, document.title);
+
+        if (location.state?.scrollToHistory) {
+          setTimeout(() => {
+            const element = document.getElementById(
+              "prediction-history-section"
+            );
+            if (element) {
+              element.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }
+          });
+        }
+      }
+    };
+
+    handleHistoryNavigation();
+  }, [location.state]);
+
+  const predictionHistoryRef = useRef(null);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="w-full pt-[140px] md:pt-[160px] pb-12 px-4">
@@ -1742,7 +1773,11 @@ const Profile = () => {
 
               {/* Prediction History Section */}
               {showPredictions && (
-                <div className="mt-8 bg-white/80 backdrop-blur-lg rounded-[2rem] shadow-xl border border-white/20 overflow-hidden p-8">
+                <div
+                  id="prediction-history-section"
+                  ref={predictionHistoryRef}
+                  className="mt-8 bg-white/80 backdrop-blur-lg rounded-[2rem] shadow-xl border border-white/20 overflow-hidden p-8"
+                >
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <h3 className="text-xl font-bold text-gray-800">
@@ -2135,4 +2170,4 @@ const Profile = () => {
   );
 };
 
-export default Profile;
+export default Account;
