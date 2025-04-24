@@ -9,8 +9,6 @@ import {
   FaDownload,
 } from "react-icons/fa";
 import html2pdf from "html2pdf.js";
-import ReactDOM from "react-dom";
-import App from "../App";
 
 const PredictionDetail = () => {
   const { predictionId } = useParams();
@@ -18,7 +16,7 @@ const PredictionDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const contentRef = useRef(null);
   const mainContentRef = useRef(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -85,8 +83,56 @@ const PredictionDetail = () => {
     navigate(-1); // This will go back to the previous page instead of hardcoding "/Account"
   };
 
-  const handleDelete = async () => {
-    setShowConfirmModal(true);
+  // Add useEffect for handling body scroll
+  useEffect(() => {
+    if (showDeleteConfirm) {
+      // Prevent scrolling on the body when modal is open
+      document.body.style.overflow = "hidden";
+    } else {
+      // Re-enable scrolling when modal is closed
+      document.body.style.overflow = "unset";
+    }
+
+    // Cleanup function to re-enable scrolling when component unmounts
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showDeleteConfirm]);
+
+  // Add this function to handle
+  //  confirmation
+  // Delete confirmation modal component
+  const DeleteConfirmModal = ({ onConfirm, onCancel }) => {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+        <div className="relative bg-white/90 backdrop-blur-md rounded-2xl p-8 max-w-md w-full mx-4 shadow-xl border border-white/20">
+          <h3 className="text-xl font-semibold mb-4">Confirm Deletion</h3>
+          <p className="text-gray-600 mb-6">
+            Are you sure you want to delete this prediction? This action cannot
+            be undone.
+          </p>
+          <div className="flex justify-end space-x-4">
+            <button
+              onClick={onCancel}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-200 rounded-xl transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="px-4 py-2 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
   };
 
   const confirmDelete = async () => {
@@ -114,7 +160,7 @@ const PredictionDetail = () => {
     } catch (err) {
       console.error("Error deleting prediction:", err);
       setError(err.message || "Failed to delete prediction");
-      setShowConfirmModal(false); // Hide the modal on error
+      setShowDeleteConfirm(false); // Hide the modal on error
     } finally {
       setLoading(false);
     }
@@ -317,6 +363,12 @@ const PredictionDetail = () => {
       ref={mainContentRef}
       className="min-h-screen pt-32 flex flex-col items-center bg-gradient-to-br from-gray-50 via-white to-gray-100"
     >
+      {showDeleteConfirm && (
+        <DeleteConfirmModal
+          onConfirm={confirmDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
       {/* Header Section */}
       <div className="w-full max-w-4xl mb-6 no-print">
         <div className="flex justify-between items-center bg-white shadow-lg rounded-lg p-6">
@@ -347,7 +399,7 @@ const PredictionDetail = () => {
               )}
             </button>
             <button
-              onClick={() => setShowConfirmModal(true)}
+              onClick={handleDelete}
               className="px-6 py-2.5 bg-red-500 text-white text-sm rounded-full hover:bg-red-600 transition-all shadow-md hover:scale-105 duration-300"
             >
               Delete Prediction
@@ -637,33 +689,6 @@ const PredictionDetail = () => {
           </div>
         </div>
       </div>
-
-      {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <h2 className="text-xl font-bold mb-4">Confirm Deletion</h2>
-            <p className="mb-6 text-gray-600">
-              Are you sure you want to delete this prediction? This action
-              cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => setShowConfirmModal(false)}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
