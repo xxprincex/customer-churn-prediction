@@ -22,13 +22,7 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 app = Flask(__name__, static_folder='dist', static_url_path='')
 
 # Configure CORS
-CORS(app, resources={
-    r"/*": {
-        "origins": "*",  # Allow all origins temporarily for testing
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
+CORS(app)
 
 # Initialize Firebase Admin
 try:
@@ -561,10 +555,11 @@ def predict_batch():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Serve static files from the React app
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+    if path and os.path.exists(app.static_folder + '/' + path):
         return send_from_directory(app.static_folder, path)
     else:
         return send_from_directory(app.static_folder, 'index.html')
