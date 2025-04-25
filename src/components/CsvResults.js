@@ -43,6 +43,8 @@ ChartJS.register(
 // Constants for pagination
 const ITEMS_PER_PAGE = 50;
 const MAX_PAGES_SHOWN = 5;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // milliseconds
 
 // Error boundary component
 class ErrorBoundary extends React.Component {
@@ -90,6 +92,9 @@ const CsvResults = ({ results, fileName }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [saveTimeout, setSaveTimeout] = useState(null);
+  const [activeTab, setActiveTab] = useState("summary");
+  const [showErrorDetails, setShowErrorDetails] = useState(false);
+  const [errorAnalysis, setErrorAnalysis] = useState(null);
   const navigate = useNavigate();
 
   // Extract predictions from results prop
@@ -265,109 +270,123 @@ const CsvResults = ({ results, fileName }) => {
   }, [predictions, fileName]);
 
   const handleSaveBatchResults = async () => {
-    if (!auth.currentUser) {
-      toast.error("Please sign in to save predictions");
-      return;
-    }
-
-    // Check for premium access
     try {
-      const userRef = doc(db, "Users", auth.currentUser.uid);
-      const userDoc = await getDoc(userRef);
-      const userData = userDoc.data();
+      setIsSaving(true);
 
-      if (userData.subscriptionPlan !== "gold") {
-        toast.error(
-          "Saving batch predictions is only available for Gold subscribers"
-        );
-        return;
+      // Save to Firestore with chunks
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error("User not authenticated");
       }
-    } catch (error) {
-      console.error("Error checking subscription:", error);
-      toast.error("Failed to verify subscription status");
-      return;
-    }
 
-    if (!predictions.length) {
-      toast.error("No predictions to save");
-      return;
-    }
+      const CHUNK_SIZE = 100; // Maximum number of predictions per chunk
+      const predictions = results.predictions;
+      const chunks = [];
 
-    setIsSaving(true);
+      // Validate predictions array
+      if (!Array.isArray(predictions) || predictions.length === 0) {
+        throw new Error("No valid predictions to save");
+      }
 
-    try {
-      // Calculate summary
-      const summary = predictions.reduce(
-        (acc, pred) => {
-          // Count churn vs stay
-          acc[pred.prediction]++;
+      // Clean and validate predictions before chunking
+      const cleanedPredictions = predictions
+        .map((pred) => {
+          if (!pred || typeof pred !== "object") {
+            return null;
+          }
 
-          // Count risk levels
-          if (pred.churnProbability >= 0.7) acc.highRisk++;
-          else if (pred.churnProbability >= 0.3) acc.mediumRisk++;
-          else acc.lowRisk++;
+          // Clean the prediction object
+          const cleaned = Object.entries(pred).reduce((acc, [key, value]) => {
+            if (value != null) {
+              acc[key] = value;
+            }
+            return acc;
+          }, {});
 
-          return acc;
-        },
+          return Object.keys(cleaned).length > 0 ? cleaned : null;
+        })
+        .filter(Boolean);
+
+      if (cleanedPredictions.length === 0) {
+        throw new Error("No valid prediction data to save");
+      }
+
+      // Split predictions into chunks
+      for (let i = 0; i < cleanedPredictions.length; i += CHUNK_SIZE) {
+        const chunk = cleanedPredictions.slice(i, i + CHUNK_SIZE);
+        if (chunk && chunk.length > 0) {
+          chunks.push(chunk);
+        }
+      }
+
+      // Create main document
+      const mainDocRef = await addDoc(
+        collection(db, "Users", user.uid, "batchPredictions"),
         {
-          churn: 0,
-          stay: 0,
-          highRisk: 0,
-          mediumRisk: 0,
-          lowRisk: 0,
+          timestamp: serverTimestamp(),
+          fileName: fileName || "Untitled Batch",
+          recordCount: cleanedPredictions.length,
+          summary: {
+            total: cleanedPredictions.length,
+            successful: cleanedPredictions.length,
+            failed: results.summary.total - cleanedPredictions.length,
+            ...results.summary,
+          },
+          totalChunks: chunks.length,
+          errors: Array.isArray(results.errors) ? results.errors : [],
         }
       );
 
-      // Create chunks of predictions (max 100 predictions per chunk)
-      const CHUNK_SIZE = 100;
-      const chunks = [];
-      for (let i = 0; i < predictions.length; i += CHUNK_SIZE) {
-        chunks.push(predictions.slice(i, i + CHUNK_SIZE));
-      }
-
-      // Save main batch document with metadata and summary
-      const predictionsRef = collection(
+      // Save chunks with retry logic
+      const chunksCollection = collection(
         db,
         "Users",
-        auth.currentUser.uid,
-        "batchPredictions"
+        user.uid,
+        "batchPredictions",
+        mainDocRef.id,
+        "chunks"
       );
-      const mainDocRef = await addDoc(predictionsRef, {
-        fileName: fileName || "Untitled Batch",
-        timestamp: serverTimestamp(),
-        totalRecords: predictions.length,
-        summary,
-        totalChunks: chunks.length,
-      });
 
-      // Save chunks
-      const chunkPromises = chunks.map(async (chunk, index) => {
-        // Only save if chunk is non-empty and contains at least one non-empty object
-        if (
-          !chunk.length ||
-          chunk.every((obj) => !obj || Object.keys(obj).length === 0)
-        )
-          return;
-        const chunkRef = doc(
-          predictionsRef,
-          mainDocRef.id,
-          "chunks",
-          `chunk_${index}`
-        );
-        await setDoc(chunkRef, {
-          predictions: chunk,
-          chunkIndex: index,
-        });
-      });
+      // Save chunks in parallel with retry logic
+      await Promise.all(
+        chunks.map(async (chunk, index) => {
+          if (!chunk || chunk.length === 0) return;
 
-      await Promise.all(chunkPromises);
+          const chunkData = {
+            predictions: chunk,
+            chunkIndex: index,
+            count: chunk.length,
+          };
 
-      toast.success("Predictions saved successfully");
-      setIsSaving(false);
+          if (!chunkData.predictions || chunkData.predictions.length === 0) {
+            console.error(`Skipping empty chunk ${index}`);
+            return;
+          }
+
+          for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            try {
+              await setDoc(doc(chunksCollection, `chunk_${index}`), chunkData);
+              break;
+            } catch (error) {
+              console.error(
+                `Error saving chunk ${index}, attempt ${attempt + 1}:`,
+                error
+              );
+              if (attempt === MAX_RETRIES - 1) throw error;
+              await new Promise((resolve) =>
+                setTimeout(resolve, RETRY_DELAY * (attempt + 1))
+              );
+            }
+          }
+        })
+      );
+
+      toast.success("Results saved successfully!");
       setIsSaved(true);
     } catch (error) {
-      console.error("Error saving predictions:", error);
-      toast.error("Failed to save predictions");
+      console.error("Error saving results:", error);
+      toast.error(`Failed to save results: ${error.message}`);
+    } finally {
       setIsSaving(false);
     }
   };
@@ -380,6 +399,170 @@ const CsvResults = ({ results, fileName }) => {
       }
     };
   }, [saveTimeout]);
+
+  useEffect(() => {
+    if (results && results.errors && results.errors.length > 0) {
+      // Analyze errors and categorize them
+      const analysis = analyzeErrors(results.errors);
+      setErrorAnalysis(analysis);
+    }
+  }, [results]);
+
+  const analyzeErrors = (errors) => {
+    const analysis = {
+      total: errors.length,
+      byType: {},
+      byField: {},
+      samples: {},
+    };
+
+    errors.forEach((error) => {
+      // Categorize by error type
+      const errorType = error.type || "Unknown";
+      analysis.byType[errorType] = (analysis.byType[errorType] || 0) + 1;
+
+      // Track affected fields
+      if (error.field) {
+        analysis.byField[error.field] =
+          (analysis.byField[error.field] || 0) + 1;
+      }
+
+      // Store sample errors (up to 3 per type)
+      if (!analysis.samples[errorType]) {
+        analysis.samples[errorType] = [];
+      }
+      if (analysis.samples[errorType].length < 3) {
+        analysis.samples[errorType].push(error);
+      }
+    });
+
+    return analysis;
+  };
+
+  const renderErrorAnalysis = () => {
+    if (!errorAnalysis) return null;
+
+    return (
+      <div className="mt-6 bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Error Analysis
+          </h3>
+          <button
+            onClick={() => setShowErrorDetails(!showErrorDetails)}
+            className="text-sm text-blue-600 hover:text-blue-800"
+          >
+            {showErrorDetails ? "Hide Details" : "Show Details"}
+          </button>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center text-red-600">
+            <FaExclamationTriangle className="mr-2" />
+            <span className="font-medium">
+              {errorAnalysis.total} records failed processing
+            </span>
+          </div>
+          <p className="text-sm text-gray-600 mt-1">
+            Success Rate:{" "}
+            {(
+              (results.summary.successful / results.summary.total) *
+              100
+            ).toFixed(1)}
+            %
+          </p>
+        </div>
+
+        {showErrorDetails && (
+          <div className="space-y-6">
+            {/* Error Types Breakdown */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                Error Types
+              </h4>
+              <div className="space-y-2">
+                {Object.entries(errorAnalysis.byType).map(([type, count]) => (
+                  <div
+                    key={type}
+                    className="flex justify-between items-center text-sm"
+                  >
+                    <span className="text-gray-600">{type}</span>
+                    <span className="font-medium">{count} occurrences</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Affected Fields */}
+            {Object.keys(errorAnalysis.byField).length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Affected Fields
+                </h4>
+                <div className="space-y-2">
+                  {Object.entries(errorAnalysis.byField).map(
+                    ([field, count]) => (
+                      <div
+                        key={field}
+                        className="flex justify-between items-center text-sm"
+                      >
+                        <span className="text-gray-600">{field}</span>
+                        <span className="font-medium">{count} errors</span>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Sample Errors */}
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">
+                Sample Errors
+              </h4>
+              <div className="space-y-4">
+                {Object.entries(errorAnalysis.samples).map(
+                  ([type, samples]) => (
+                    <div key={type} className="bg-gray-50 p-3 rounded-md">
+                      <h5 className="text-sm font-medium text-gray-700 mb-2">
+                        {type}
+                      </h5>
+                      <ul className="space-y-2">
+                        {samples.map((error, idx) => (
+                          <li key={idx} className="text-sm text-gray-600">
+                            {error.message}
+                            {error.row && (
+                              <span className="text-gray-500">
+                                {" "}
+                                (Row: {error.row})
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Recommendations */}
+            <div className="bg-blue-50 p-4 rounded-md">
+              <h4 className="text-sm font-medium text-blue-700 mb-2">
+                Recommendations
+              </h4>
+              <ul className="list-disc pl-5 space-y-1 text-sm text-blue-600">
+                <li>Check the data format in the failed rows</li>
+                <li>Ensure all required fields have valid values</li>
+                <li>Verify numeric fields contain proper numbers</li>
+                <li>Consider preprocessing data before upload</li>
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Add this to your existing buttons section
   const renderSaveButton = () => {
@@ -1647,39 +1830,66 @@ const CsvResults = ({ results, fileName }) => {
           Monthly Churn Trend
         </h3>
         <div className="h-64 flex items-end space-x-2">
-          {Array.from({ length: 12 }, (_, i) => {
-            const month = new Date();
-            month.setMonth(month.getMonth() - i);
-            const monthName = month.toLocaleString("default", {
-              month: "short",
+          {(() => {
+            // Process actual data for monthly trends
+            const monthlyData = predictions.reduce((acc, prediction) => {
+              const lastOrderDate = prediction.formData?.LastOrderDate;
+              if (lastOrderDate) {
+                const date = new Date(lastOrderDate);
+                const monthYear = `${date.getMonth()}-${date.getFullYear()}`;
+                if (!acc[monthYear]) {
+                  acc[monthYear] = {
+                    total: 0,
+                    churn: 0,
+                    month: date.toLocaleString("default", { month: "short" }),
+                    year: date.getFullYear(),
+                  };
+                }
+                acc[monthYear].total++;
+                if (prediction.prediction === 1) {
+                  acc[monthYear].churn++;
+                }
+              }
+              return acc;
+            }, {});
+
+            // Sort by date and get last 12 months
+            const sortedMonths = Object.entries(monthlyData)
+              .sort(([a], [b]) => {
+                const [aMonth, aYear] = a.split("-").map(Number);
+                const [bMonth, bYear] = b.split("-").map(Number);
+                return aYear * 12 + aMonth - (bYear * 12 + bMonth);
+              })
+              .slice(-12);
+
+            return sortedMonths.map(([key, data]) => {
+              const churnRate = (data.churn / data.total) * 100;
+
+              return (
+                <div key={key} className="flex-1">
+                  <div className="h-48 flex items-end">
+                    <div
+                      className="w-full bg-gradient-to-t from-red-500 to-red-400 rounded-t-lg transition-all duration-500"
+                      style={{ height: `${churnRate * 2}px` }}
+                    >
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-6 text-xs text-gray-600">
+                        {churnRate.toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-center mt-2">
+                    <div className="text-xs text-gray-600">{data.month}</div>
+                    <div className="text-xs text-gray-500">{data.year}</div>
+                  </div>
+                </div>
+              );
             });
-            const year = month.getFullYear();
-
-            // Simulate monthly churn data (in a real app, this would come from your data)
-            const churnCount = Math.floor(Math.random() * 50) + 10;
-            const totalCustomers = Math.floor(Math.random() * 200) + 100;
-            const churnRate = (churnCount / totalCustomers) * 100;
-
-            return (
-              <div key={`${monthName}-${year}`} className="flex-1">
-                <div className="h-48 flex items-end">
-                  <div
-                    className="w-full bg-gradient-to-t from-red-500 to-red-400 rounded-t-lg transition-all duration-500"
-                    style={{ height: `${churnRate * 2}px` }}
-                  />
-                </div>
-                <div className="text-center mt-2">
-                  <div className="text-xs text-gray-600">{monthName}</div>
-                  <div className="text-xs text-gray-500">{year}</div>
-                </div>
-              </div>
-            );
-          })}
+          })()}
         </div>
         <div className="mt-4 flex justify-center space-x-4">
           <div className="flex items-center">
             <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-            <span className="text-sm text-gray-600">Churn Rate</span>
+            <span className="text-sm text-gray-600">Monthly Churn Rate</span>
           </div>
         </div>
       </div>
@@ -1943,6 +2153,7 @@ const CsvResults = ({ results, fileName }) => {
                   totalOrders: 0,
                   totalSpending: 0,
                   totalAppHours: 0,
+                  churnCount: 0,
                 };
               }
               tenureGroups[tenure].count++;
@@ -1952,6 +2163,9 @@ const CsvResults = ({ results, fileName }) => {
                 parseFloat(p.formData?.OrderAmountHikeFromlastYear) || 0;
               tenureGroups[tenure].totalAppHours +=
                 parseFloat(p.formData?.HourSpendOnApp) || 0;
+              if (p.prediction === 1) {
+                tenureGroups[tenure].churnCount++;
+              }
             });
 
             // Convert to arrays for plotting
@@ -1959,21 +2173,25 @@ const CsvResults = ({ results, fileName }) => {
               (a, b) => parseInt(a) - parseInt(b)
             );
             const maxTenure = Math.max(...tenures.map((t) => parseInt(t)));
-            const avgOrders = tenures.map(
-              (t) => tenureGroups[t].totalOrders / tenureGroups[t].count
-            );
-            const avgSpending = tenures.map(
-              (t) => tenureGroups[t].totalSpending / tenureGroups[t].count
-            );
-            const avgAppHours = tenures.map(
-              (t) => tenureGroups[t].totalAppHours / tenureGroups[t].count
-            );
+
+            // Calculate metrics
+            const metrics = tenures.map((t) => ({
+              tenure: parseInt(t),
+              avgOrders: tenureGroups[t].totalOrders / tenureGroups[t].count,
+              avgSpending:
+                tenureGroups[t].totalSpending / tenureGroups[t].count,
+              avgAppHours:
+                tenureGroups[t].totalAppHours / tenureGroups[t].count,
+              churnRate:
+                (tenureGroups[t].churnCount / tenureGroups[t].count) * 100,
+            }));
 
             // Calculate max values for scaling
-            const maxOrders = Math.max(...avgOrders);
-            const maxSpending = Math.max(...avgSpending);
-            const maxAppHours = Math.max(...avgAppHours);
+            const maxOrders = Math.max(...metrics.map((m) => m.avgOrders));
+            const maxSpending = Math.max(...metrics.map((m) => m.avgSpending));
+            const maxAppHours = Math.max(...metrics.map((m) => m.avgAppHours));
 
+            // Draw grid and axes
             return (
               <>
                 {/* Grid lines */}
@@ -1996,10 +2214,10 @@ const CsvResults = ({ results, fileName }) => {
                 >
                   {/* Orders Line */}
                   <path
-                    d={tenures
-                      .map((t, i) => {
-                        const x = (parseInt(t) / maxTenure) * 1200;
-                        const y = 800 - (avgOrders[i] / maxOrders) * 700;
+                    d={metrics
+                      .map((m, i) => {
+                        const x = (m.tenure / maxTenure) * 1200;
+                        const y = 800 - (m.avgOrders / maxOrders) * 700;
                         return `${i === 0 ? "M" : "L"} ${x} ${y}`;
                       })
                       .join(" ")}
@@ -2008,12 +2226,26 @@ const CsvResults = ({ results, fileName }) => {
                     fill="none"
                   />
 
+                  {/* Data points for Orders */}
+                  {metrics.map((m, i) => {
+                    const x = (m.tenure / maxTenure) * 1200;
+                    const y = 800 - (m.avgOrders / maxOrders) * 700;
+                    return (
+                      <g key={`orders-${i}`}>
+                        <circle cx={x} cy={y} r="4" className="fill-red-500" />
+                        <title>
+                          {`Month ${m.tenure}: ${m.avgOrders.toFixed(1)} orders`}
+                        </title>
+                      </g>
+                    );
+                  })}
+
                   {/* Spending Line */}
                   <path
-                    d={tenures
-                      .map((t, i) => {
-                        const x = (parseInt(t) / maxTenure) * 1200;
-                        const y = 800 - (avgSpending[i] / maxSpending) * 700;
+                    d={metrics
+                      .map((m, i) => {
+                        const x = (m.tenure / maxTenure) * 1200;
+                        const y = 800 - (m.avgSpending / maxSpending) * 700;
                         return `${i === 0 ? "M" : "L"} ${x} ${y}`;
                       })
                       .join(" ")}
@@ -2022,12 +2254,31 @@ const CsvResults = ({ results, fileName }) => {
                     fill="none"
                   />
 
+                  {/* Data points for Spending */}
+                  {metrics.map((m, i) => {
+                    const x = (m.tenure / maxTenure) * 1200;
+                    const y = 800 - (m.avgSpending / maxSpending) * 700;
+                    return (
+                      <g key={`spending-${i}`}>
+                        <circle
+                          cx={x}
+                          cy={y}
+                          r="4"
+                          className="fill-green-500"
+                        />
+                        <title>
+                          {`Month ${m.tenure}: ${m.avgSpending.toFixed(1)}% spending change`}
+                        </title>
+                      </g>
+                    );
+                  })}
+
                   {/* App Hours Line */}
                   <path
-                    d={tenures
-                      .map((t, i) => {
-                        const x = (parseInt(t) / maxTenure) * 1200;
-                        const y = 800 - (avgAppHours[i] / maxAppHours) * 700;
+                    d={metrics
+                      .map((m, i) => {
+                        const x = (m.tenure / maxTenure) * 1200;
+                        const y = 800 - (m.avgAppHours / maxAppHours) * 700;
                         return `${i === 0 ? "M" : "L"} ${x} ${y}`;
                       })
                       .join(" ")}
@@ -2035,21 +2286,80 @@ const CsvResults = ({ results, fileName }) => {
                     strokeWidth="2"
                     fill="none"
                   />
+
+                  {/* Data points for App Hours */}
+                  {metrics.map((m, i) => {
+                    const x = (m.tenure / maxTenure) * 1200;
+                    const y = 800 - (m.avgAppHours / maxAppHours) * 700;
+                    return (
+                      <g key={`app-hours-${i}`}>
+                        <circle
+                          cx={x}
+                          cy={y}
+                          r="4"
+                          className="fill-indigo-500"
+                        />
+                        <title>
+                          {`Month ${m.tenure}: ${m.avgAppHours.toFixed(1)} hours`}
+                        </title>
+                      </g>
+                    );
+                  })}
+
+                  {/* Churn Rate Indicators */}
+                  {metrics.map((m, i) => {
+                    const x = (m.tenure / maxTenure) * 1200;
+                    return (
+                      <g key={`churn-${i}`}>
+                        <circle
+                          cx={x}
+                          cy={780}
+                          r="3"
+                          className={
+                            m.churnRate > 50
+                              ? "fill-red-500"
+                              : m.churnRate > 25
+                                ? "fill-yellow-500"
+                                : "fill-green-500"
+                          }
+                        />
+                        <title>
+                          {`Month ${m.tenure}: ${m.churnRate.toFixed(1)}% churn rate`}
+                        </title>
+                      </g>
+                    );
+                  })}
                 </svg>
 
+                {/* Axes Labels */}
+                <div className="absolute bottom-0 left-0 w-full text-center text-sm text-gray-600">
+                  Customer Tenure (Months)
+                </div>
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 -rotate-90 text-sm text-gray-600">
+                  Activity Metrics
+                </div>
+
                 {/* Legend */}
-                <div className="absolute bottom-0 right-0 bg-white/80 p-2 rounded-lg flex gap-4">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-red-500 rounded-full mr-2" />
-                    <span className="text-xs text-gray-600">Orders</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-green-500 rounded-full mr-2" />
-                    <span className="text-xs text-gray-600">Spending</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-indigo-500 rounded-full mr-2" />
-                    <span className="text-xs text-gray-600">App Usage</span>
+                <div className="absolute top-0 right-0 bg-white/80 p-2 rounded-lg">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-red-500 rounded-full mr-2" />
+                      <span className="text-xs text-gray-600">Orders</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mr-2" />
+                      <span className="text-xs text-gray-600">
+                        Spending Change
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-indigo-500 rounded-full mr-2" />
+                      <span className="text-xs text-gray-600">App Usage</span>
+                    </div>
+                    <div className="flex items-center">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2" />
+                      <span className="text-xs text-gray-600">Churn Risk</span>
+                    </div>
                   </div>
                 </div>
               </>

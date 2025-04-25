@@ -560,10 +560,6 @@ const CsvUpload = () => {
       setUploadProgress(0);
       setError(null);
 
-      // Track API errors separately
-      let apiErrors = [];
-      let processingErrors = [];
-
       // Parse CSV file first
       const parseResult = await new Promise((resolve, reject) => {
         Papa.parse(file, {
@@ -575,21 +571,101 @@ const CsvUpload = () => {
       });
 
       let csvData = parseResult.data;
+      let processingErrors = [];
 
       // Handle missing values and validate data before processing
       const { processedData, imputationStats } = handleMissingValues(csvData);
       csvData = processedData;
 
-      // Process data in smaller batches (500 instead of 1000) to reduce timeouts
-      const BATCH_SIZE = 500;
+      // Validate data types and collect errors
+      const validationErrors = validateDataTypes(csvData);
+      if (validationErrors.length > 0) {
+        processingErrors.push(
+          ...validationErrors.map((error) => ({
+            type: "Validation Error",
+            message: error,
+            field: error.split(":")[1]?.split(" ")[2], // Extract field name from error message
+          }))
+        );
+      }
+
+      // Process data in batches of 1000
+      const BATCH_SIZE = 1000;
       const totalBatches = Math.ceil(csvData.length / BATCH_SIZE);
       let processedRecords = 0;
       let allResults = [];
+      let allErrors = [];
 
       for (let i = 0; i < totalBatches; i++) {
         const start = i * BATCH_SIZE;
         const end = Math.min((i + 1) * BATCH_SIZE, csvData.length);
         const batch = csvData.slice(start, end);
+
+        // Prepare batch data with enhanced error tracking
+        const batchData = {
+          data: batch
+            .map((row, index) => {
+              try {
+                // Create a clean copy of the row data
+                const cleanData = {};
+                const formData = { ...row };
+
+                // Process each field with detailed error tracking
+                Object.entries(row).forEach(([key, value]) => {
+                  try {
+                    if (key === "CustomerID") {
+                      cleanData.customerID = value;
+                    } else if (numericColumns.includes(key)) {
+                      const numValue = parseFloat(value);
+                      if (isNaN(numValue)) {
+                        throw new Error(
+                          `Invalid numeric value for ${key}: ${value}`
+                        );
+                      }
+                      cleanData[key] = numValue;
+                      formData[key] = numValue;
+                    } else {
+                      cleanData[key] = value;
+                    }
+                  } catch (fieldError) {
+                    processingErrors.push({
+                      type: "Data Type Error",
+                      message: fieldError.message,
+                      row: start + index + 1,
+                      field: key,
+                      value: value,
+                    });
+                  }
+                });
+
+                return {
+                  ...cleanData,
+                  formData: formData,
+                };
+              } catch (rowError) {
+                processingErrors.push({
+                  type: "Row Processing Error",
+                  message: rowError.message,
+                  row: start + index + 1,
+                });
+                return null;
+              }
+            })
+            .filter(Boolean), // Remove failed rows
+          customerIds: batch.map((row, index) => {
+            const id =
+              row.CustomerID ||
+              `generated_${Math.random().toString(36).substr(2, 9)}`;
+            if (!row.CustomerID) {
+              processingErrors.push({
+                type: "Missing ID",
+                message: "Generated temporary ID for missing CustomerID",
+                row: start + index + 1,
+              });
+            }
+            return id;
+          }),
+        };
 
         try {
           // Send batch to API with timeout handling
@@ -601,42 +677,41 @@ const CsvUpload = () => {
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              data: batch,
-              batchIndex: i,
-              totalBatches: totalBatches,
-            }),
+            body: JSON.stringify(batchData),
             signal: controller.signal,
-          }).catch((error) => {
-            // Capture network-level errors
-            if (error.name === "AbortError") {
-              throw new Error(`Batch ${i + 1} timed out after 30 seconds`);
-            }
-            if (error.message.includes("ERR_BLOCKED_BY_CLIENT")) {
-              throw new Error(
-                "API call blocked by browser (possibly by ad blocker)"
-              );
-            }
-            throw error;
           });
 
           clearTimeout(timeoutId);
 
           if (!response.ok) {
-            throw new Error(
-              `API error: ${response.statusText} (Status: ${response.status})`
-            );
+            throw new Error(`API error: ${response.statusText}`);
           }
 
           const batchResults = await response.json();
-
           if (batchResults.error) {
             throw new Error(batchResults.error);
           }
 
           // Process successful predictions
-          if (batchResults.predictions) {
-            allResults = [...allResults, ...batchResults.predictions];
+          allResults = [
+            ...allResults,
+            ...batchResults.predictions.map((pred) => ({
+              ...pred,
+              formData: batchData.data.find(
+                (d) => d.customerID === pred.customerID
+              )?.formData,
+            })),
+          ];
+
+          // Collect API-reported errors
+          if (batchResults.errors) {
+            allErrors = [
+              ...allErrors,
+              ...batchResults.errors.map((error) => ({
+                type: "API Error",
+                ...error,
+              })),
+            ];
           }
 
           // Update progress
@@ -648,22 +723,15 @@ const CsvUpload = () => {
         } catch (error) {
           console.error("Batch processing error:", error);
 
-          // Categorize and store the error
-          if (error.message.includes("ERR_BLOCKED_BY_CLIENT")) {
-            apiErrors.push({
-              type: "Network Error",
-              message:
-                "API calls are being blocked. Please disable ad blocker or check network settings.",
-              batchIndex: i,
-            });
-          } else if (error.message.includes("timed out")) {
-            apiErrors.push({
+          // Handle different types of errors
+          if (error.name === "AbortError") {
+            processingErrors.push({
               type: "Timeout Error",
-              message: error.message,
+              message: `Batch ${i + 1} processing timed out`,
               batchIndex: i,
             });
           } else {
-            apiErrors.push({
+            processingErrors.push({
               type: "API Error",
               message: error.message,
               batchIndex: i,
@@ -675,16 +743,22 @@ const CsvUpload = () => {
         }
       }
 
+      // Combine all errors
+      const finalErrors = [...processingErrors, ...allErrors];
+
       // Prepare final results with enhanced error reporting
       const finalResults = {
         predictions: allResults,
+        errors: finalErrors,
         summary: {
           total: csvData.length,
           successful: allResults.length,
           failed: csvData.length - allResults.length,
+          errorTypes: finalErrors.reduce((acc, error) => {
+            acc[error.type] = (acc[error.type] || 0) + 1;
+            return acc;
+          }, {}),
         },
-        apiErrors: apiErrors,
-        processingErrors: processingErrors,
       };
 
       // Set results for display
@@ -695,13 +769,13 @@ const CsvUpload = () => {
       const successRate = (allResults.length / csvData.length) * 100;
       if (successRate === 100) {
         toast.success(`Successfully processed all ${processedRecords} records`);
-      } else if (successRate > 0) {
+      } else if (successRate > 50) {
         toast.warning(
-          `Partially successful: ${allResults.length} out of ${csvData.length} records processed. Check error analysis for details.`
+          `Processed ${allResults.length} out of ${csvData.length} records successfully`
         );
       } else {
         toast.error(
-          `Processing failed: No records processed successfully. Check error analysis for details.`
+          `High failure rate: Only ${allResults.length} out of ${csvData.length} records processed successfully`
         );
       }
     } catch (error) {
