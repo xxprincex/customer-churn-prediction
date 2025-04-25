@@ -1,0 +1,9 @@
+services:
+  - type: static
+    name: customer-churn-prediction-frontend
+    env: node
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://customer-churn-prediction-pxq8.onrender.com
