@@ -12,6 +12,7 @@ from firebase_admin import credentials, firestore
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -33,8 +34,20 @@ CORS(app, resources={
 })
 
 # Initialize Firebase Admin
-cred = credentials.Certificate('serviceAccountKey.json')
-firebase_admin.initialize_app(cred)
+firebase_config = os.getenv('FIREBASE_CONFIG')
+if firebase_config:
+    cred_dict = json.loads(firebase_config)
+    cred = credentials.Certificate(cred_dict)
+    firebase_admin.initialize_app(cred)
+else:
+    print("Warning: FIREBASE_CONFIG environment variable not set")
+    # Initialize with default credentials if available
+    try:
+        firebase_admin.initialize_app()
+    except ValueError as e:
+        print(f"Error initializing Firebase: {e}")
+
+# Initialize Firestore
 db = firestore.client()
 
 # Initialize Stripe
