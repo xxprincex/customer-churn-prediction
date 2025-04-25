@@ -275,60 +275,103 @@ const CsvResults = ({ results, fileName }) => {
   const handleSaveBatchResults = async () => {
     try {
       setIsSaving(true);
-
       const user = auth.currentUser;
       if (!user) {
-        throw new Error("User not authenticated");
+        toast.error("You must be logged in to save predictions");
+        return;
       }
 
-      // Smaller chunk size to ensure we stay under Firestore's 1MB limit
-      const CHUNK_SIZE = 50; // Reduced from 100 to 50 predictions per chunk
-      const predictions = results.predictions;
-
-      // Validate predictions array
-      if (!Array.isArray(predictions) || predictions.length === 0) {
-        throw new Error("No valid predictions to save");
-      }
-
-      // Clean and optimize predictions before chunking
+      // Clean and validate predictions before saving
       const cleanedPredictions = predictions
         .map((pred) => {
           if (!pred || typeof pred !== "object") return null;
 
-          // Only keep essential fields to reduce document size
-          return {
-            customerID: pred.customerID || pred.formData?.CustomerID,
-            prediction: pred.prediction,
-            churnProbability: Number(pred.churnProbability.toFixed(4)), // Reduce decimal precision
-            stayProbability: Number(pred.stayProbability.toFixed(4)),
+          // Clean and validate each field
+          const cleanedPred = {
+            customerID: pred.customerID || pred.CustomerID || "Unknown",
+            prediction:
+              typeof pred.prediction === "number" ? pred.prediction : 0,
+            churnProbability:
+              typeof pred.churnProbability === "number"
+                ? parseFloat(pred.churnProbability.toFixed(4))
+                : 0,
+            confidence_score:
+              typeof pred.confidence_score === "number"
+                ? parseFloat(pred.confidence_score.toFixed(4))
+                : 0,
             riskLevel:
-              pred.riskLevel ||
-              (pred.churnProbability > 0.7
+              pred.churnProbability > 0.7
                 ? "High"
                 : pred.churnProbability > 0.3
                   ? "Medium"
-                  : "Low"),
-            // Store only essential form data fields
-            formData: {
-              Tenure: pred.formData.Tenure,
-              SatisfactionScore: pred.formData.SatisfactionScore,
-              Complain: pred.formData.Complain,
-              DaySinceLastOrder: pred.formData.DaySinceLastOrder,
-              OrderCount: pred.formData.OrderCount,
-            },
+                  : "Low",
           };
+
+          // Clean formData if it exists
+          if (pred.formData && typeof pred.formData === "object") {
+            const cleanedFormData = Object.entries(pred.formData).reduce(
+              (acc, [key, value]) => {
+                // Only include non-null and non-undefined values
+                if (value != null) {
+                  // Convert numbers to fixed decimal places
+                  if (typeof value === "number") {
+                    acc[key] = parseFloat(value.toFixed(4));
+                  } else if (typeof value === "string" && value.trim()) {
+                    acc[key] = value.trim();
+                  } else if (Array.isArray(value) && value.length > 0) {
+                    acc[key] = value;
+                  } else if (typeof value === "boolean") {
+                    acc[key] = value;
+                  }
+                }
+                return acc;
+              },
+              {}
+            );
+
+            // Only add formData if it's not empty
+            if (Object.keys(cleanedFormData).length > 0) {
+              cleanedPred.formData = cleanedFormData;
+            }
+          }
+
+          // Ensure the prediction object has required fields
+          if (!cleanedPred.customerID || cleanedPred.customerID === "Unknown") {
+            return null;
+          }
+
+          return cleanedPred;
         })
-        .filter(Boolean);
+        .filter(Boolean); // Remove any null results from the map
 
       if (cleanedPredictions.length === 0) {
-        throw new Error("No valid prediction data to save");
+        toast.error("No valid predictions to save");
+        return;
       }
 
-      // Split predictions into chunks
       const chunks = [];
+      const CHUNK_SIZE = 100;
+
+      // Split predictions into chunks and validate each chunk
       for (let i = 0; i < cleanedPredictions.length; i += CHUNK_SIZE) {
-        chunks.push(cleanedPredictions.slice(i, i + CHUNK_SIZE));
+        const chunk = cleanedPredictions.slice(i, i + CHUNK_SIZE);
+        // Only add chunk if it contains valid predictions
+        if (chunk.length > 0) {
+          chunks.push(chunk);
+        }
       }
+
+      // Calculate summary statistics
+      const totalRecords = cleanedPredictions.length;
+      const highRiskCount = cleanedPredictions.filter(
+        (p) => p.riskLevel === "High"
+      ).length;
+      const mediumRiskCount = cleanedPredictions.filter(
+        (p) => p.riskLevel === "Medium"
+      ).length;
+      const lowRiskCount = cleanedPredictions.filter(
+        (p) => p.riskLevel === "Low"
+      ).length;
 
       // Create main document with summary and metadata
       const mainDocRef = await addDoc(
@@ -336,25 +379,36 @@ const CsvResults = ({ results, fileName }) => {
         {
           timestamp: serverTimestamp(),
           fileName: fileName || "Untitled Batch",
-          recordCount: cleanedPredictions.length,
+          totalRecords,
+          recordCount: totalRecords,
           summary: {
-            total: cleanedPredictions.length,
+            total: totalRecords,
             successful: cleanedPredictions.length,
             failed: results.summary.total - cleanedPredictions.length,
+            highRisk: highRiskCount,
+            mediumRisk: mediumRiskCount,
+            lowRisk: lowRiskCount,
             riskDistribution: {
-              high: cleanedPredictions.filter((p) => p.riskLevel === "High")
-                .length,
-              medium: cleanedPredictions.filter((p) => p.riskLevel === "Medium")
-                .length,
-              low: cleanedPredictions.filter((p) => p.riskLevel === "Low")
-                .length,
+              high: highRiskCount,
+              medium: mediumRiskCount,
+              low: lowRiskCount,
             },
           },
           totalChunks: chunks.length,
+          savedChunks: 0,
+          failedChunks: 0,
           errors: Array.isArray(results.errors)
-            ? results.errors.slice(0, 10)
-            : [], // Store only first 10 errors
+            ? results.errors
+                .slice(0, 10)
+                .map((err) => ({
+                  type: err.type || "Unknown",
+                  message: err.message || "Unknown error",
+                  field: err.field || null,
+                }))
+                .filter((err) => err.message && err.type)
+            : [],
           status: "processing",
+          createdAt: serverTimestamp(),
         }
       );
 
@@ -371,10 +425,26 @@ const CsvResults = ({ results, fileName }) => {
       // Save chunks in sequence with retry logic
       for (let index = 0; index < chunks.length; index++) {
         const chunk = chunks[index];
+
+        // Skip empty chunks
+        if (!chunk || chunk.length === 0) {
+          continue;
+        }
+
         const chunkData = {
-          predictions: chunk,
+          predictions: chunk.map((p) => ({
+            ...p,
+            // Ensure all required fields have non-null values
+            customerID: p.customerID || "Unknown",
+            prediction: p.prediction || 0,
+            churnProbability: p.churnProbability || 0,
+            confidence_score: p.confidence_score || 0,
+            riskLevel: p.riskLevel || "Low",
+          })),
           chunkIndex: index,
           count: chunk.length,
+          timestamp: serverTimestamp(),
+          processedAt: serverTimestamp(),
         };
 
         // Retry logic for each chunk
@@ -393,11 +463,6 @@ const CsvResults = ({ results, fileName }) => {
               // On final attempt failure, save error information
               await updateDoc(mainDocRef, {
                 failedChunks: increment(1),
-                errors: arrayUnion({
-                  type: "ChunkSaveError",
-                  chunkIndex: index,
-                  message: error.message,
-                }),
               });
             }
             await new Promise((resolve) =>
@@ -418,6 +483,7 @@ const CsvResults = ({ results, fileName }) => {
       await updateDoc(mainDocRef, {
         status: "completed",
         completedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
 
       toast.success("Results saved successfully!");
