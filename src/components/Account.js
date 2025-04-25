@@ -1,6 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { auth, db } from "../firebase";
-import { stripePromise, GOLD_PLAN_PRICE } from "../stripe";
 import {
   getDoc,
   doc,
@@ -19,7 +18,6 @@ import {
 } from "firebase/auth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { loadStripe } from "@stripe/stripe-js";
 
 // Update the gold shine styles
 const goldShineStyles = `
@@ -1119,24 +1117,37 @@ const Account = () => {
     const handleHistoryNavigation = async () => {
       if (location.state?.showPredictions) {
         setShowPredictions(true);
+
+        // First set the states
         await fetchPredictionHistory();
+        if (location.state?.scrollToBatchPredictions) {
+          setShowBatchHistory(true);
+          await fetchBatchPredictions();
+        }
 
-        // Clear the state after using it
-        window.history.replaceState({}, document.title);
-
-        if (location.state?.scrollToHistory) {
-          setTimeout(() => {
-            const element = document.getElementById(
-              "prediction-history-section"
-            );
-            if (element) {
+        // Then handle scrolling with a delay to ensure content is rendered
+        setTimeout(() => {
+          const element = document.getElementById("prediction-history-section");
+          if (element) {
+            if (location.state?.fromBatchDetail) {
+              // Use a longer delay when coming from batch detail page
+              setTimeout(() => {
+                element.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              }, 100);
+            } else {
               element.scrollIntoView({
                 behavior: "smooth",
                 block: "start",
               });
             }
-          });
-        }
+          }
+        }, 0);
+
+        // Clear the state after using it
+        window.history.replaceState({}, document.title);
       }
     };
 
@@ -1915,8 +1926,24 @@ const Account = () => {
                   )}
 
                   {loadingBatch || loading ? (
-                    <div className="flex justify-center items-center p-6">
-                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+                    <div className="space-y-4">
+                      <div className="animate-pulse space-y-4">
+                        {[1, 2, 3].map((i) => (
+                          <div
+                            key={i}
+                            className="bg-white rounded-lg p-4 flex items-center justify-between"
+                          >
+                            <div className="space-y-3 flex-1">
+                              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                            </div>
+                            <div className="flex space-x-4">
+                              <div className="h-8 w-24 bg-gray-200 rounded"></div>
+                              <div className="h-8 w-24 bg-gray-200 rounded"></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : showBatchHistory ? (
                     batchPredictions.length > 0 ? (

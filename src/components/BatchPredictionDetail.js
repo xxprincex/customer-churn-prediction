@@ -1,5 +1,11 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { auth, db } from "../firebase";
 import {
   collection,
@@ -15,8 +21,10 @@ import {
   FaChevronUp,
   FaChevronDown,
   FaCheckCircle,
+  FaSpinner,
+  FaCrown,
 } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 // Constants for pagination
 const ITEMS_PER_PAGE = 50;
@@ -1059,8 +1067,10 @@ const BatchPredictionDetail = () => {
   const [batchData, setBatchData] = useState(null);
   const [predictions, setPredictions] = useState([]);
   const [viewMode, setViewMode] = useState("summary");
+  const [isSaving, setIsSaving] = useState(false);
   const navigate = useNavigate();
   const { id } = useParams();
+  const contentRef = useRef(null);
 
   // Check user's subscription status
   useEffect(() => {
@@ -1078,6 +1088,7 @@ const BatchPredictionDetail = () => {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setUserSubscription(userData.subscriptionPlan);
+          setHasAccess(userData.subscriptionPlan === "gold");
         }
       } catch (error) {
         console.error("Error checking subscription:", error);
@@ -1088,48 +1099,6 @@ const BatchPredictionDetail = () => {
     };
 
     checkSubscription();
-  }, [navigate]);
-
-  useEffect(() => {
-    const checkAccess = async () => {
-      setIsCheckingAccess(true);
-      try {
-        const user = auth.currentUser;
-        if (!user) {
-          setHasAccess(false);
-          navigate("/login");
-          return;
-        }
-
-        const userDocRef = doc(db, "Users", user.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          if (hasPremiumAccess(userData)) {
-            setHasAccess(true);
-          } else {
-            setHasAccess(false);
-            toast.error(
-              "Batch predictions are only available for Gold subscribers."
-            );
-            navigate("/account");
-          }
-        } else {
-          setHasAccess(false);
-          toast.error("User profile not found");
-          navigate("/login");
-        }
-      } catch (error) {
-        console.error("Error checking access:", error);
-        setHasAccess(false);
-        toast.error("Error checking access status");
-      } finally {
-        setIsCheckingAccess(false);
-      }
-    };
-
-    checkAccess();
   }, [navigate]);
 
   useEffect(() => {
@@ -1188,6 +1157,17 @@ const BatchPredictionDetail = () => {
     }
   }, [id, navigate, hasAccess]);
 
+  const handleBack = () => {
+    navigate("/account", {
+      state: {
+        showPredictions: true,
+        scrollToBatchPredictions: true,
+        fromBatchDetail: true,
+      },
+      replace: true,
+    });
+  };
+
   const handleDownloadCSV = useCallback(() => {
     if (!predictions.length) return;
 
@@ -1237,45 +1217,63 @@ const BatchPredictionDetail = () => {
     document.body.removeChild(a);
   }, [predictions, batchData]);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
-      </div>
-    );
-  }
+  const handleDownloadPDF = () => {
+    if (isSaving) return;
+    setIsSaving(true);
 
-  if (userSubscription !== "gold") {
+    try {
+      // Store the main app container reference
+      const mainContainer = document.getElementById("root");
+      const originalContent = mainContainer.innerHTML;
+
+      // Store current body style
+      const originalBodyStyle = document.body.style.cssText;
+      const originalBodyClass = document.body.className;
+
+      // Temporarily modify the document for printing
+      document.body.style.backgroundColor = "white";
+      document.body.style.padding = "0";
+      document.body.style.margin = "0";
+      document.body.className = "";
+
+      // Only show the content we want to print
+      if (contentRef.current) {
+        mainContainer.innerHTML = contentRef.current.outerHTML;
+      }
+
+      // Print the document
+      window.print();
+
+      // Restore the original content and styles
+      mainContainer.innerHTML = originalContent;
+      document.body.style.cssText = originalBodyStyle;
+      document.body.className = originalBodyClass;
+    } catch (error) {
+      console.error("Error during print:", error);
+      alert("Failed to generate PDF. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading || loading) {
     return (
-      <div className="p-8 text-center">
-        <div className="mb-6">
-          <FaCheckCircle className="text-6xl text-[#1d5a7b] mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">
-            Gold Subscription Required
-          </h2>
-          <p className="text-gray-600 mb-6">
-            This feature is exclusively available for Gold subscribers.
-          </p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+        <div className="container mx-auto px-4 pt-[140px] pb-12">
+          {/* Back button */}
           <button
-            onClick={() => navigate("/account")}
-            className="bg-[#1d5a7b] text-white px-6 py-2 rounded-md hover:bg-[#164e68] transition-colors"
+            onClick={handleBack}
+            className="mb-6 inline-flex items-center text-gray-600 hover:text-gray-900 transition-colors"
           >
-            Upgrade to Gold
+            <ArrowLeftIcon className="w-5 h-5 mr-2" />
+            Back to History
           </button>
-        </div>
-      </div>
-    );
-  }
 
-  if (loading || isCheckingAccess) {
-    return (
-      <div className="min-h-screen pt-48 flex flex-col items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#1d5a7b]"></div>
-        <p className="mt-4 text-lg text-gray-600">
-          {isCheckingAccess
-            ? "Checking access status..."
-            : "Loading prediction details..."}
-        </p>
+          {/* Main content */}
+          <div className="flex justify-center items-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1320,71 +1318,91 @@ const BatchPredictionDetail = () => {
     );
   }
 
-  const viewComponents = {
-    summary: SummaryView,
-    table: TableView,
-    charts: ChartsView,
-  };
-
-  const CurrentView = viewComponents[viewMode];
-
   return (
-    <ErrorBoundary>
-      <div className="min-h-screen bg-gray-50 pt-[140px] pb-12 px-4">
-        <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
+      <div className="container mx-auto px-4 pt-[140px] pb-12">
+        <div ref={contentRef} className="max-w-4xl mx-auto">
           {/* Header Section */}
-          <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <div className="flex justify-between items-start mb-6">
+          <div className="w-full mb-6 no-print">
+            <div className="flex justify-between items-center bg-white shadow-lg rounded-lg p-6">
               <div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                <h2 className="text-2xl font-bold font-serif mb-2">
                   Batch Prediction Details
-                </h1>
-                <p className="text-gray-600">File: {batchData.fileName}</p>
-                <p className="text-gray-600">
+                </h2>
+                <p className="text-sm text-gray-600">
                   Processed on: {new Date(batchData.timestamp).toLocaleString()}
                 </p>
+                <p className="text-sm text-gray-600">
+                  File: {batchData.fileName}
+                </p>
               </div>
-              <div className="flex gap-4">
+              <div className="space-x-2 flex items-center">
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={isSaving}
+                  className="inline-flex items-center px-6 py-2.5 bg-blue-500 text-white text-sm rounded-full hover:bg-blue-600 transition-all shadow-md hover:scale-105 duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <span className="flex items-center">
+                      <span className="animate-spin mr-2">↻</span>
+                      Preparing...
+                    </span>
+                  ) : (
+                    <>
+                      <FaDownload className="w-4 h-4 mr-2" />
+                      Save as PDF
+                    </>
+                  )}
+                </button>
                 <button
                   onClick={handleDownloadCSV}
-                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors"
+                  className="px-6 py-2.5 bg-green-500 text-white text-sm rounded-full hover:bg-green-600 transition-all shadow-md hover:scale-105 duration-300"
                 >
-                  <FaDownload className="mr-2" /> Download CSV
+                  <FaDownload className="w-4 h-4 mr-2 inline" />
+                  Download CSV
                 </button>
                 <button
-                  onClick={() => navigate("/account")}
-                  className="bg-gray-100 text-gray-600 px-4 py-2 rounded-full hover:bg-gray-200 transition-colors"
+                  onClick={handleBack}
+                  className="px-6 py-2.5 bg-gray-500 text-white text-sm rounded-full hover:bg-gray-600 transition-all shadow-md hover:scale-105 duration-300"
                 >
-                  Back to Account
+                  Back to History
                 </button>
               </div>
             </div>
+          </div>
 
-            {/* View Mode Tabs */}
-            <div className="flex space-x-4 mb-6">
-              {Object.keys(viewComponents).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className={`px-4 py-2 rounded-full ${
-                    viewMode === mode
-                      ? "bg-[#1d5a7b] text-white"
-                      : "bg-gray-200 text-gray-700"
-                  }`}
-                >
-                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                </button>
-              ))}
-            </div>
+          {/* View Mode Tabs */}
+          <div className="flex space-x-4 mb-6">
+            {["summary", "table", "charts"].map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-4 py-2 rounded-full ${
+                  viewMode === mode
+                    ? "bg-[#1d5a7b] text-white"
+                    : "bg-gray-200 text-gray-700"
+                }`}
+              >
+                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+              </button>
+            ))}
+          </div>
 
-            {/* Content based on view mode */}
-            <div className="mt-6">
-              <CurrentView data={{ batchData, predictions }} />
-            </div>
+          {/* Content based on view mode */}
+          <div className="mt-6">
+            {viewMode === "summary" && (
+              <SummaryView data={{ batchData, predictions }} />
+            )}
+            {viewMode === "table" && (
+              <TableView data={{ batchData, predictions }} />
+            )}
+            {viewMode === "charts" && (
+              <ChartsView data={{ batchData, predictions }} />
+            )}
           </div>
         </div>
       </div>
-    </ErrorBoundary>
+    </div>
   );
 };
 

@@ -10,6 +10,9 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 
+// Add API URL configuration
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
 // Batch prediction functions
 export const getBatchPredictions = async (userId) => {
   try {
@@ -87,5 +90,21 @@ export const deleteBatchPrediction = async (userId, batchId) => {
   } catch (error) {
     console.error("Error deleting batch prediction:", error);
     throw error;
+  }
+};
+
+// Update the API calls to use the configured URL
+export const makePrediction = async (formData) => {
+  try {
+    const response = await fetch(`${API_URL}/predict`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    });
+    // ... rest of the code ...
+  } catch (error) {
+    // ... error handling ...
   }
 };
