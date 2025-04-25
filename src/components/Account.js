@@ -1348,7 +1348,7 @@ const Account = () => {
                         </svg>
                         {showPredictions
                           ? "Hide Predictions"
-                          : "View Past Predictions"}
+                          : "View Saved Predictions"}
                       </button>
 
                       <div className="flex items-center gap-4">
@@ -1781,7 +1781,7 @@ const Account = () => {
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <h3 className="text-xl font-bold text-gray-800">
-                        Prediction History
+                        Saved Predictions
                       </h3>
                       <div className="h-1 w-20 bg-[#1d5a7b] rounded"></div>
                     </div>
@@ -2042,8 +2042,8 @@ const Account = () => {
                         />
                       </svg>
                       <p className="text-gray-500 text-sm">
-                        No prediction history found. Make some predictions to
-                        see them here!
+                        No saved predictions found. Make some predictions to see
+                        them here!
                       </p>
                     </div>
                   )}
