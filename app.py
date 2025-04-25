@@ -24,10 +24,7 @@ app = Flask(__name__, static_folder='dist', static_url_path='')
 # Configure CORS
 CORS(app, resources={
     r"/*": {
-        "origins": [
-            "http://localhost:3000",
-            os.getenv('FRONTEND_URL', 'https://your-frontend-url.onrender.com')
-        ],
+        "origins": "*",  # Allow all origins temporarily for testing
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
@@ -564,18 +561,12 @@ def predict_batch():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@app.route('/')
-def home():
-    return send_from_directory(app.static_folder, 'index.html')
-
-# Add catch-all route for client-side routing
+@app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
-def catch_all(path):
-    try:
-        # First try to serve actual files
+def serve(path):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
-    except:
-        # If file not found, serve index.html for client-side routing
+    else:
         return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
