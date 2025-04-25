@@ -964,6 +964,7 @@ const Account = () => {
 
         // Get the summary from the main document
         let summary = data.summary || {};
+        let totalRecords = data.totalRecords || data.recordCount || 0;
 
         // If there's no summary in the main document, calculate it from chunks
         if (!summary.highRisk && !summary.mediumRisk && !summary.lowRisk) {
@@ -975,15 +976,19 @@ const Account = () => {
             const chunkData = chunkDoc.data();
             if (chunkData.predictions && Array.isArray(chunkData.predictions)) {
               predictions = predictions.concat(chunkData.predictions);
+              // Update total records if not set in main document
+              if (!totalRecords) {
+                totalRecords += chunkData.predictions.length;
+              }
             }
           });
 
           // Calculate summary from predictions
           summary = predictions.reduce(
             (acc, pred) => {
-              if (parseFloat(pred.churnProbability) > 0.7) acc.highRisk++;
-              else if (parseFloat(pred.churnProbability) > 0.3)
-                acc.mediumRisk++;
+              const probability = parseFloat(pred.churnProbability);
+              if (probability > 0.7) acc.highRisk++;
+              else if (probability > 0.3) acc.mediumRisk++;
               else acc.lowRisk++;
               return acc;
             },
@@ -994,10 +999,11 @@ const Account = () => {
         batchData.push({
           id: docSnapshot.id,
           ...data,
+          totalRecords,
           summary: {
-            highRiskCount: summary.highRisk || 0,
-            mediumRiskCount: summary.mediumRisk || 0,
-            lowRiskCount: summary.lowRisk || 0,
+            highRisk: summary.highRisk || summary.high || 0,
+            mediumRisk: summary.mediumRisk || summary.medium || 0,
+            lowRisk: summary.lowRisk || summary.low || 0,
           },
           date: data.timestamp
             ? formatDisplayDate(data.timestamp.toDate())
@@ -1062,17 +1068,17 @@ const Account = () => {
               <td className="px-6 py-4 whitespace-nowrap">
                 <div className="flex flex-col gap-1">
                   <span className="text-sm text-red-600">
-                    High: {batch.summary?.highRiskCount || 0}
+                    High: {batch.summary?.highRisk || 0}
                   </span>
                   <span className="text-sm text-yellow-600">
-                    Medium: {batch.summary?.mediumRiskCount || 0}
+                    Medium: {batch.summary?.mediumRisk || 0}
                   </span>
                   <span className="text-sm text-green-600">
-                    Low: {batch.summary?.lowRiskCount || 0}
+                    Low: {batch.summary?.lowRisk || 0}
                   </span>
                 </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <button
                   onClick={() =>
                     navigate(`/batch-prediction-detail/${batch.id}`)
