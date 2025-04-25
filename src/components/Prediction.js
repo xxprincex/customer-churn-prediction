@@ -537,7 +537,7 @@ const Prediction = () => {
       {hasPremiumAccess && (
         <div className="mb-8 flex justify-center gap-4">
           <button
-            className={`px-6 py-3 rounded-lg font-medium transition-all ${
+            className={`px-6 py-3 rounded-2xl font-medium transition-all ${
               !showCsvUpload
                 ? "bg-[#1d5a7b] text-white"
                 : "bg-gray-200 text-gray-700"
@@ -547,7 +547,7 @@ const Prediction = () => {
             Single Prediction
           </button>
           <button
-            className={`px-6 py-3 rounded-lg font-medium transition-all ${
+            className={`px-6 py-3 rounded-2xl font-medium transition-all ${
               showCsvUpload
                 ? "bg-[#1d5a7b] text-white"
                 : "bg-gray-200 text-gray-700"
