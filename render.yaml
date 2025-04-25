@@ -1,9 +1,15 @@
 services:
-  - type: static
-    name: customer-churn-prediction-frontend
-    env: node
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
+  - type: web
+    name: customer-churn-prediction
+    env: python
+    buildCommand: npm install && npm run build && pip install -r requirements.txt
+    startCommand: python serve.py
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
       - key: REACT_APP_API_URL
         value: https://customer-churn-prediction-pxq8.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
