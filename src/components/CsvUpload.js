@@ -560,6 +560,10 @@ const CsvUpload = () => {
       setUploadProgress(0);
       setError(null);
 
+      // Track API errors separately
+      let apiErrors = [];
+      let processingErrors = [];
+
       // Parse CSV file first
       const parseResult = await new Promise((resolve, reject) => {
         Papa.parse(file, {
@@ -572,86 +576,67 @@ const CsvUpload = () => {
 
       let csvData = parseResult.data;
 
-      // Handle missing values before processing
-      csvData = handleMissingValues(csvData).processedData;
-      toast.info("Missing values have been filled with median values");
+      // Handle missing values and validate data before processing
+      const { processedData, imputationStats } = handleMissingValues(csvData);
+      csvData = processedData;
 
-      // Process data in batches of 1000
-      const BATCH_SIZE = 1000;
+      // Process data in smaller batches (500 instead of 1000) to reduce timeouts
+      const BATCH_SIZE = 500;
       const totalBatches = Math.ceil(csvData.length / BATCH_SIZE);
       let processedRecords = 0;
       let allResults = [];
-      let allErrors = [];
 
       for (let i = 0; i < totalBatches; i++) {
         const start = i * BATCH_SIZE;
         const end = Math.min((i + 1) * BATCH_SIZE, csvData.length);
         const batch = csvData.slice(start, end);
 
-        // Prepare batch data
-        const batchData = {
-          data: batch.map((row) => {
-            // Create a clean copy of the row data
-            const cleanData = {};
-            const formData = { ...row }; // Keep all original data
-
-            // Process each field
-            Object.entries(row).forEach(([key, value]) => {
-              // Process for the prediction
-              if (key === "CustomerID") {
-                cleanData.customerID = value;
-              } else if (numericColumns.includes(key)) {
-                const numValue = parseFloat(value) || 0;
-                cleanData[key] = numValue;
-                formData[key] = numValue;
-              } else {
-                cleanData[key] = value;
-              }
-            });
-
-            return {
-              ...cleanData,
-              formData: formData,
-            };
-          }),
-          customerIds: batch.map(
-            (row) =>
-              row.CustomerID ||
-              `generated_${Math.random().toString(36).substr(2, 9)}`
-          ),
-        };
-
         try {
-          // Send batch to API
+          // Send batch to API with timeout handling
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
           const response = await fetch("http://localhost:5000/predict-batch", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify(batchData),
+            body: JSON.stringify({
+              data: batch,
+              batchIndex: i,
+              totalBatches: totalBatches,
+            }),
+            signal: controller.signal,
+          }).catch((error) => {
+            // Capture network-level errors
+            if (error.name === "AbortError") {
+              throw new Error(`Batch ${i + 1} timed out after 30 seconds`);
+            }
+            if (error.message.includes("ERR_BLOCKED_BY_CLIENT")) {
+              throw new Error(
+                "API call blocked by browser (possibly by ad blocker)"
+              );
+            }
+            throw error;
           });
 
+          clearTimeout(timeoutId);
+
           if (!response.ok) {
-            throw new Error(`API error: ${response.statusText}`);
+            throw new Error(
+              `API error: ${response.statusText} (Status: ${response.status})`
+            );
           }
 
           const batchResults = await response.json();
+
           if (batchResults.error) {
             throw new Error(batchResults.error);
           }
 
-          allResults = [
-            ...allResults,
-            ...batchResults.predictions.map((pred) => ({
-              ...pred,
-              formData: batchData.data.find(
-                (d) => d.customerID === pred.customerID
-              )?.formData,
-            })),
-          ];
-
-          if (batchResults.errors) {
-            allErrors = [...allErrors, ...batchResults.errors];
+          // Process successful predictions
+          if (batchResults.predictions) {
+            allResults = [...allResults, ...batchResults.predictions];
           }
 
           // Update progress
@@ -662,35 +647,63 @@ const CsvUpload = () => {
           setUploadProgress(progress);
         } catch (error) {
           console.error("Batch processing error:", error);
-          toast.error(`Error processing batch ${i + 1}: ${error.message}`);
-          throw error;
+
+          // Categorize and store the error
+          if (error.message.includes("ERR_BLOCKED_BY_CLIENT")) {
+            apiErrors.push({
+              type: "Network Error",
+              message:
+                "API calls are being blocked. Please disable ad blocker or check network settings.",
+              batchIndex: i,
+            });
+          } else if (error.message.includes("timed out")) {
+            apiErrors.push({
+              type: "Timeout Error",
+              message: error.message,
+              batchIndex: i,
+            });
+          } else {
+            apiErrors.push({
+              type: "API Error",
+              message: error.message,
+              batchIndex: i,
+            });
+          }
+
+          // Continue with next batch despite errors
+          continue;
         }
       }
 
-      // Prepare final results
+      // Prepare final results with enhanced error reporting
       const finalResults = {
         predictions: allResults,
-        errors: allErrors,
         summary: {
           total: csvData.length,
           successful: allResults.length,
-          failed: allErrors.length,
+          failed: csvData.length - allResults.length,
         },
+        apiErrors: apiErrors,
+        processingErrors: processingErrors,
       };
-
-      // Save to Firestore
-      try {
-        await saveToFirestore(finalResults, file.name, csvData.length);
-        toast.success("Predictions saved to your account");
-      } catch (error) {
-        console.error("Error saving to Firestore:", error);
-        toast.error("Failed to save predictions to your account");
-      }
 
       // Set results for display
       setResults(finalResults);
       setUploadProgress(100);
-      toast.success(`Successfully processed ${processedRecords} records`);
+
+      // Show appropriate toast message based on success rate
+      const successRate = (allResults.length / csvData.length) * 100;
+      if (successRate === 100) {
+        toast.success(`Successfully processed all ${processedRecords} records`);
+      } else if (successRate > 0) {
+        toast.warning(
+          `Partially successful: ${allResults.length} out of ${csvData.length} records processed. Check error analysis for details.`
+        );
+      } else {
+        toast.error(
+          `Processing failed: No records processed successfully. Check error analysis for details.`
+        );
+      }
     } catch (error) {
       console.error("Upload error:", error);
       setError(error.message);
