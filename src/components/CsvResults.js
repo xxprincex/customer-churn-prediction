@@ -19,6 +19,9 @@ import {
   getDoc,
   writeBatch,
   setDoc,
+  updateDoc,
+  increment,
+  arrayUnion,
 } from "firebase/firestore";
 import {
   Chart as ChartJS,
@@ -273,37 +276,47 @@ const CsvResults = ({ results, fileName }) => {
     try {
       setIsSaving(true);
 
-      // Save to Firestore with chunks
       const user = auth.currentUser;
       if (!user) {
         throw new Error("User not authenticated");
       }
 
-      const CHUNK_SIZE = 100; // Maximum number of predictions per chunk
+      // Smaller chunk size to ensure we stay under Firestore's 1MB limit
+      const CHUNK_SIZE = 50; // Reduced from 100 to 50 predictions per chunk
       const predictions = results.predictions;
-      const chunks = [];
 
       // Validate predictions array
       if (!Array.isArray(predictions) || predictions.length === 0) {
         throw new Error("No valid predictions to save");
       }
 
-      // Clean and validate predictions before chunking
+      // Clean and optimize predictions before chunking
       const cleanedPredictions = predictions
         .map((pred) => {
-          if (!pred || typeof pred !== "object") {
-            return null;
-          }
+          if (!pred || typeof pred !== "object") return null;
 
-          // Clean the prediction object
-          const cleaned = Object.entries(pred).reduce((acc, [key, value]) => {
-            if (value != null) {
-              acc[key] = value;
-            }
-            return acc;
-          }, {});
-
-          return Object.keys(cleaned).length > 0 ? cleaned : null;
+          // Only keep essential fields to reduce document size
+          return {
+            customerID: pred.customerID || pred.formData?.CustomerID,
+            prediction: pred.prediction,
+            churnProbability: Number(pred.churnProbability.toFixed(4)), // Reduce decimal precision
+            stayProbability: Number(pred.stayProbability.toFixed(4)),
+            riskLevel:
+              pred.riskLevel ||
+              (pred.churnProbability > 0.7
+                ? "High"
+                : pred.churnProbability > 0.3
+                  ? "Medium"
+                  : "Low"),
+            // Store only essential form data fields
+            formData: {
+              Tenure: pred.formData.Tenure,
+              SatisfactionScore: pred.formData.SatisfactionScore,
+              Complain: pred.formData.Complain,
+              DaySinceLastOrder: pred.formData.DaySinceLastOrder,
+              OrderCount: pred.formData.OrderCount,
+            },
+          };
         })
         .filter(Boolean);
 
@@ -312,14 +325,12 @@ const CsvResults = ({ results, fileName }) => {
       }
 
       // Split predictions into chunks
+      const chunks = [];
       for (let i = 0; i < cleanedPredictions.length; i += CHUNK_SIZE) {
-        const chunk = cleanedPredictions.slice(i, i + CHUNK_SIZE);
-        if (chunk && chunk.length > 0) {
-          chunks.push(chunk);
-        }
+        chunks.push(cleanedPredictions.slice(i, i + CHUNK_SIZE));
       }
 
-      // Create main document
+      // Create main document with summary and metadata
       const mainDocRef = await addDoc(
         collection(db, "Users", user.uid, "batchPredictions"),
         {
@@ -330,10 +341,20 @@ const CsvResults = ({ results, fileName }) => {
             total: cleanedPredictions.length,
             successful: cleanedPredictions.length,
             failed: results.summary.total - cleanedPredictions.length,
-            ...results.summary,
+            riskDistribution: {
+              high: cleanedPredictions.filter((p) => p.riskLevel === "High")
+                .length,
+              medium: cleanedPredictions.filter((p) => p.riskLevel === "Medium")
+                .length,
+              low: cleanedPredictions.filter((p) => p.riskLevel === "Low")
+                .length,
+            },
           },
           totalChunks: chunks.length,
-          errors: Array.isArray(results.errors) ? results.errors : [],
+          errors: Array.isArray(results.errors)
+            ? results.errors.slice(0, 10)
+            : [], // Store only first 10 errors
+          status: "processing",
         }
       );
 
@@ -347,39 +368,57 @@ const CsvResults = ({ results, fileName }) => {
         "chunks"
       );
 
-      // Save chunks in parallel with retry logic
-      await Promise.all(
-        chunks.map(async (chunk, index) => {
-          if (!chunk || chunk.length === 0) return;
+      // Save chunks in sequence with retry logic
+      for (let index = 0; index < chunks.length; index++) {
+        const chunk = chunks[index];
+        const chunkData = {
+          predictions: chunk,
+          chunkIndex: index,
+          count: chunk.length,
+        };
 
-          const chunkData = {
-            predictions: chunk,
-            chunkIndex: index,
-            count: chunk.length,
-          };
-
-          if (!chunkData.predictions || chunkData.predictions.length === 0) {
-            console.error(`Skipping empty chunk ${index}`);
-            return;
-          }
-
-          for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-            try {
-              await setDoc(doc(chunksCollection, `chunk_${index}`), chunkData);
-              break;
-            } catch (error) {
-              console.error(
-                `Error saving chunk ${index}, attempt ${attempt + 1}:`,
-                error
-              );
-              if (attempt === MAX_RETRIES - 1) throw error;
-              await new Promise((resolve) =>
-                setTimeout(resolve, RETRY_DELAY * (attempt + 1))
-              );
+        // Retry logic for each chunk
+        let saved = false;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            await setDoc(doc(chunksCollection, `chunk_${index}`), chunkData);
+            saved = true;
+            break;
+          } catch (error) {
+            console.error(
+              `Error saving chunk ${index}, attempt ${attempt + 1}:`,
+              error
+            );
+            if (attempt === 2) {
+              // On final attempt failure, save error information
+              await updateDoc(mainDocRef, {
+                failedChunks: increment(1),
+                errors: arrayUnion({
+                  type: "ChunkSaveError",
+                  chunkIndex: index,
+                  message: error.message,
+                }),
+              });
             }
+            await new Promise((resolve) =>
+              setTimeout(resolve, 1000 * (attempt + 1))
+            );
           }
-        })
-      );
+        }
+
+        // Update progress in main document
+        if (saved) {
+          await updateDoc(mainDocRef, {
+            savedChunks: increment(1),
+          });
+        }
+      }
+
+      // Update final status
+      await updateDoc(mainDocRef, {
+        status: "completed",
+        completedAt: serverTimestamp(),
+      });
 
       toast.success("Results saved successfully!");
       setIsSaved(true);
