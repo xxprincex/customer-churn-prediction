@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Customer Churn Prediction Web Application",
   "scripts": {
-    "start": "parcel index.html",
-    "build": "parcel build index.html",
+    "build": "parcel build src/index.html --dist-dir dist",
+    "start": "parcel src/index.html",
     "test": "jest --coverage",
     "lint": "eslint src/**/*.{js,jsx}",
     "format": "prettier --write \"src/**/*.{js,jsx,css}\"",
