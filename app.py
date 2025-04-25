@@ -34,21 +34,37 @@ CORS(app, resources={
 })
 
 # Initialize Firebase Admin
-firebase_config = os.getenv('FIREBASE_CONFIG')
-if firebase_config:
-    cred_dict = json.loads(firebase_config)
-    cred = credentials.Certificate(cred_dict)
-    firebase_admin.initialize_app(cred)
-else:
-    print("Warning: FIREBASE_CONFIG environment variable not set")
-    # Initialize with default credentials if available
-    try:
-        firebase_admin.initialize_app()
-    except ValueError as e:
-        print(f"Error initializing Firebase: {e}")
+try:
+    firebase_config = os.getenv('FIREBASE_CONFIG')
+    if firebase_config:
+        try:
+            cred_dict = json.loads(firebase_config)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+        except json.JSONDecodeError as e:
+            print(f"Error parsing Firebase config: {e}")
+            print("Please check your FIREBASE_CONFIG environment variable format")
+            # Initialize with default credentials if available
+            try:
+                firebase_admin.initialize_app()
+            except ValueError as e:
+                print(f"Error initializing Firebase: {e}")
+    else:
+        print("Warning: FIREBASE_CONFIG environment variable not set")
+        # Initialize with default credentials if available
+        try:
+            firebase_admin.initialize_app()
+        except ValueError as e:
+            print(f"Error initializing Firebase: {e}")
+except Exception as e:
+    print(f"Error during Firebase initialization: {e}")
 
 # Initialize Firestore
-db = firestore.client()
+try:
+    db = firestore.client()
+except Exception as e:
+    print(f"Error initializing Firestore: {e}")
+    db = None
 
 # Initialize Stripe
 stripe.api_key = STRIPE_API_KEY
