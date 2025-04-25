@@ -211,7 +211,7 @@ def clean_numeric_value(value, default=0):
     except (ValueError, TypeError):
         return default
 
-@app.route('/predict', methods=['POST'])
+@app.route('/api/predict', methods=['POST'])
 def predict():
     try:
         # Get data from request
@@ -473,7 +473,7 @@ def prepare_features(record):
     features = np.array(features).reshape(1, -1)
     return scaler.transform(features)[0]
 
-@app.route('/predict-batch', methods=['POST'])
+@app.route('/api/predict-batch', methods=['POST'])
 def predict_batch():
     try:
         request_data = request.get_json()
@@ -559,7 +559,7 @@ def predict_batch():
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    if path and os.path.exists(app.static_folder + '/' + path):
+    if path and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     else:
         return send_from_directory(app.static_folder, 'index.html')
