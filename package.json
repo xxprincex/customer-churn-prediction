@@ -28,10 +28,7 @@
   "homepage": "https://github.com/xxprincex/Hello-React#readme",
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
-    "@emotion/react": "^11.11.3",
-    "@emotion/styled": "^11.11.0",
-    "@mui/icons-material": "^5.15.11",
-    "@mui/material": "^5.15.11",
+    "@heroicons/react": "^2.2.0",
     "@stripe/stripe-js": "^7.1.0",
     "axios": "^1.6.7",
     "chart.js": "^4.4.9",
