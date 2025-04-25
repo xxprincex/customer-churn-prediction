@@ -8,6 +8,8 @@ import {
   serverTimestamp,
   getDoc,
   doc,
+  setDoc,
+  increment,
 } from "firebase/firestore";
 import { db, auth } from "../firebase";
 import { useNavigate } from "react-router-dom";
@@ -107,161 +109,264 @@ const CsvUpload = () => {
     "CashbackAmount",
   ];
 
-  // Add this function after the numericColumns declaration
-  const handleMissingValues = (data) => {
-    // Calculate medians for numeric columns
-    const medians = {};
-    const imputationStats = {};
+  const validateDataTypes = (data) => {
+    const errors = [];
 
-    numericColumns.forEach((column) => {
-      const validValues = data
-        .map((row) => parseFloat(row[column]))
-        .filter((val) => !isNaN(val));
-
-      if (validValues.length > 0) {
-        validValues.sort((a, b) => a - b);
-        const mid = Math.floor(validValues.length / 2);
-        medians[column] =
-          validValues.length % 2 === 0
-            ? (validValues[mid - 1] + validValues[mid]) / 2
-            : validValues[mid];
-      }
-      imputationStats[column] = 0;
-    });
-
-    // Fill missing values with medians and track imputation counts
-    const processedData = data.map((row) => {
-      const newRow = { ...row };
-      numericColumns.forEach((column) => {
+    data.forEach((row, index) => {
+      // Validate numeric fields
+      numericColumns.forEach((field) => {
+        const value = row[field];
         if (
-          !row[column] ||
-          row[column].toString().trim() === "" ||
-          isNaN(parseFloat(row[column]))
+          value === undefined ||
+          value === null ||
+          value === "" ||
+          isNaN(parseFloat(value))
         ) {
-          newRow[column] = medians[column];
-          imputationStats[column]++;
+          errors.push(`Row ${index + 1}: Invalid numeric value for ${field}`);
         }
       });
+
+      // Validate required fields are not empty
+      requiredHeaders.forEach((field) => {
+        const value = row[field];
+        if (!value || value.toString().trim() === "") {
+          errors.push(`Row ${index + 1}: Missing required value for ${field}`);
+        }
+      });
+
+      // Validate specific field formats
+      if (row.CityTier && ![1, 2, 3, "1", "2", "3"].includes(row.CityTier)) {
+        errors.push(`Row ${index + 1}: CityTier must be 1, 2, or 3`);
+      }
+
+      if (
+        row.SatisfactionScore &&
+        ![1, 2, 3, 4, 5, "1", "2", "3", "4", "5"].includes(
+          row.SatisfactionScore
+        )
+      ) {
+        errors.push(
+          `Row ${index + 1}: SatisfactionScore must be between 1 and 5`
+        );
+      }
+
+      if (row.Complain && !["0", "1", 0, 1].includes(row.Complain)) {
+        errors.push(`Row ${index + 1}: Complain must be 0 or 1`);
+      }
+    });
+
+    return errors;
+  };
+
+  // Enhanced file validation
+  const validateFile = (file) => {
+    return new Promise((resolve, reject) => {
+      if (!file) {
+        setValidationStatus({
+          isValid: false,
+          type: "error",
+          message: "Please select a file to upload",
+        });
+        reject(new Error("No file selected"));
+        return;
+      }
+
+      // Check file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        setValidationStatus({
+          isValid: false,
+          type: "error",
+          message: "File size exceeds 5MB limit",
+        });
+        reject(new Error("File too large"));
+        return;
+      }
+
+      // Check file type
+      if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
+        setValidationStatus({
+          isValid: false,
+          type: "error",
+          message: "Please upload a valid CSV file",
+        });
+        reject(new Error("Invalid file type"));
+        return;
+      }
+
+      // Column name mapping for common variations
+      const columnMapping = {
+        customerid: "CustomerID",
+        tenure: "Tenure",
+        preferredlogindevice: "PreferredLoginDevice",
+        citytier: "CityTier",
+        warehousetohome: "WarehouseToHome",
+        preferredpaymentmode: "PreferredPaymentMode",
+        gender: "Gender",
+        hourspendonapp: "HourSpendOnApp",
+        numberofdeviceregistered: "NumberOfDeviceRegistered",
+        preferedordercat: "PreferedOrderCat",
+        satisfactionscore: "SatisfactionScore",
+        maritalstatus: "MaritalStatus",
+        numberofaddress: "NumberOfAddress",
+        complain: "Complain",
+        orderamounthikefromlastyear: "OrderAmountHikeFromlastYear",
+        couponused: "CouponUsed",
+        ordercount: "OrderCount",
+        daysincelastorder: "DaySinceLastOrder",
+        cashbackamount: "CashbackAmount",
+      };
+
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const headers = results.meta.fields || [];
+
+          // Normalize headers by removing spaces and converting to lowercase
+          const normalizedHeaders = headers.map((h) =>
+            h.replace(/\s+/g, "").toLowerCase()
+          );
+
+          // Check for missing required columns with better error handling
+          const missingColumns = [];
+          const foundColumns = [];
+
+          Object.keys(columnMapping).forEach((requiredCol) => {
+            if (
+              !normalizedHeaders.some((header) =>
+                header.includes(requiredCol.toLowerCase())
+              )
+            ) {
+              missingColumns.push(columnMapping[requiredCol]);
+            } else {
+              foundColumns.push(columnMapping[requiredCol]);
+            }
+          });
+
+          if (missingColumns.length > 0) {
+            const errorMessage = {
+              isValid: false,
+              type: "error",
+              message: "Missing required columns",
+              details: {
+                missing: missingColumns,
+                found: foundColumns,
+                original: headers,
+              },
+            };
+            setValidationStatus(errorMessage);
+
+            // Show a more helpful toast message
+            toast.error(
+              <div>
+                <p>Your CSV file is missing some required columns.</p>
+                <p>Missing: {missingColumns.join(", ")}</p>
+                <p className="text-sm mt-2">
+                  Tip: Download our template for the correct format
+                </p>
+              </div>,
+              { autoClose: 8000 }
+            );
+
+            reject(new Error("Missing required columns"));
+            return;
+          }
+
+          // If we get here, validation passed
+          setValidationStatus({
+            isValid: true,
+            type: "success",
+            message: "File validation successful",
+            details: {
+              rowCount: results.data.length,
+              columnCount: headers.length,
+            },
+          });
+
+          resolve(true);
+        },
+        error: (error) => {
+          setValidationStatus({
+            isValid: false,
+            type: "error",
+            message: "Error parsing CSV file: " + error.message,
+          });
+          reject(error);
+        },
+      });
+    });
+  };
+
+  // Enhanced missing value handler
+  const handleMissingValues = (data) => {
+    const imputationStats = {};
+    const processedData = data.map((row) => {
+      const newRow = { ...row };
+
+      // Handle numeric fields with default values
+      const numericDefaults = {
+        Tenure: 0,
+        CityTier: 2,
+        WarehouseToHome: 0,
+        HourSpendOnApp: 0,
+        NumberOfDeviceRegistered: 1,
+        SatisfactionScore: 3,
+        NumberOfAddress: 1,
+        Complain: 0,
+        OrderAmountHikeFromlastYear: 0,
+        CouponUsed: 0,
+        OrderCount: 0,
+        DaySinceLastOrder: 0,
+        CashbackAmount: 0,
+      };
+
+      Object.entries(numericDefaults).forEach(([field, defaultValue]) => {
+        if (!newRow[field] || isNaN(parseFloat(newRow[field]))) {
+          newRow[field] = defaultValue;
+          incrementImputationStat(imputationStats, field);
+        } else {
+          newRow[field] = parseFloat(newRow[field]);
+        }
+      });
+
+      // Handle categorical fields with default values
+      const categoricalDefaults = {
+        PreferredLoginDevice: "Phone",
+        PreferredPaymentMode: "Debit Card",
+        Gender: "Unknown",
+        PreferedOrderCat: "Grocery",
+        MaritalStatus: "Single",
+      };
+
+      Object.entries(categoricalDefaults).forEach(([field, defaultValue]) => {
+        if (!newRow[field] || newRow[field].trim() === "") {
+          newRow[field] = defaultValue;
+          incrementImputationStat(imputationStats, field);
+        }
+      });
+
       return newRow;
     });
 
     return { processedData, imputationStats };
   };
 
-  // Enhanced file validation
-  const validateFile = async (file) => {
-    setValidationStatus({
-      isValid: false,
-      message: "",
-      duplicates: [],
-      missingValues: {},
-      invalidValues: {},
-      type: null,
-      imputationStats: null,
-    });
+  const incrementImputationStat = (stats, field) => {
+    stats[field] = (stats[field] || 0) + 1;
+  };
 
-    if (file.size > MAX_FILE_SIZE) {
-      setValidationStatus({
-        isValid: false,
-        message: `File size exceeds maximum limit of ${MAX_FILE_SIZE / 1024 / 1024}MB`,
-        type: "error",
-      });
-      return false;
-    }
+  const formatImputationMessage = (imputationStats) => {
+    const totalImputations = Object.values(imputationStats).reduce(
+      (a, b) => a + b,
+      0
+    );
+    if (totalImputations === 0) return "";
 
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      setValidationStatus({
-        isValid: false,
-        message: "Invalid file type. Please upload a CSV file",
-        type: "error",
-      });
-      return false;
-    }
+    const details = Object.entries(imputationStats)
+      .map(([field, count]) => `${field}: ${count}`)
+      .join(", ");
 
-    return new Promise((resolve, reject) => {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          try {
-            const { data, errors, meta } = results;
-
-            if (errors.length > 0) {
-              setValidationStatus({
-                isValid: false,
-                message: "Error parsing CSV file: " + errors[0].message,
-                type: "error",
-              });
-              resolve(false);
-              return;
-            }
-
-            if (data.length === 0) {
-              setValidationStatus({
-                isValid: false,
-                message: "The CSV file is empty",
-                type: "error",
-              });
-              resolve(false);
-              return;
-            }
-
-            // Process missing values first
-            const { processedData, imputationStats } =
-              handleMissingValues(data);
-
-            // Check for required headers
-            const headers = Object.keys(processedData[0]);
-            const missingHeaders = requiredHeaders.filter(
-              (header) => !headers.includes(header)
-            );
-
-            if (missingHeaders.length > 0) {
-              setValidationStatus({
-                isValid: false,
-                message: `Missing required columns: ${missingHeaders.join(", ")}`,
-                type: "error",
-              });
-              resolve(false);
-              return;
-            }
-
-            // Set validation status with imputation information
-            const totalImputations = Object.values(imputationStats).reduce(
-              (a, b) => a + b,
-              0
-            );
-
-            setValidationStatus({
-              isValid: true,
-              message:
-                totalImputations > 0
-                  ? `File is valid. ${totalImputations} missing values will be automatically filled.`
-                  : "File is valid",
-              type: "success",
-              imputationStats,
-            });
-
-            resolve(true);
-          } catch (error) {
-            setValidationStatus({
-              isValid: false,
-              message: `Error validating file: ${error.message}`,
-              type: "error",
-            });
-            resolve(false);
-          }
-        },
-        error: (error) => {
-          setValidationStatus({
-            isValid: false,
-            message: `Error parsing CSV file: ${error.message}`,
-            type: "error",
-          });
-          resolve(false);
-        },
-      });
-    });
+    return `Missing values were filled for: ${details}`;
   };
 
   // Check if user has Gold access (either subscription or trial)
@@ -311,6 +416,7 @@ const CsvUpload = () => {
   useEffect(() => {
     // Generate CSV template for download
     const headers = [
+      "CustomerID",
       "Tenure",
       "PreferredLoginDevice",
       "CityTier",
@@ -331,7 +437,30 @@ const CsvUpload = () => {
       "CashbackAmount",
     ];
 
-    const template = headers.join(",");
+    // Add a sample row with example data
+    const sampleData = [
+      "CUST001",
+      "12",
+      "Phone",
+      "1",
+      "5",
+      "Debit Card",
+      "Male",
+      "2.5",
+      "2",
+      "Grocery",
+      "4",
+      "Single",
+      "2",
+      "0",
+      "10.5",
+      "2",
+      "5",
+      "3",
+      "100",
+    ];
+
+    const template = headers.join(",") + "\n" + sampleData.join(",");
     setCsvTemplate(template);
   }, []);
 
@@ -471,23 +600,7 @@ const CsvUpload = () => {
               // Process for the prediction
               if (key === "CustomerID") {
                 cleanData.customerID = value;
-              } else if (
-                [
-                  "Tenure",
-                  "CityTier",
-                  "WarehouseToHome",
-                  "HourSpendOnApp",
-                  "NumberOfDeviceRegistered",
-                  "SatisfactionScore",
-                  "NumberOfAddress",
-                  "Complain",
-                  "OrderAmountHikeFromlastYear",
-                  "CouponUsed",
-                  "OrderCount",
-                  "DaySinceLastOrder",
-                  "CashbackAmount",
-                ].includes(key)
-              ) {
+              } else if (numericColumns.includes(key)) {
                 const numValue = parseFloat(value) || 0;
                 cleanData[key] = numValue;
                 formData[key] = numValue;
@@ -496,12 +609,10 @@ const CsvUpload = () => {
               }
             });
 
-            const processedRow = {
+            return {
               ...cleanData,
               formData: formData,
             };
-
-            return processedRow;
           }),
           customerIds: batch.map(
             (row) =>
@@ -556,8 +667,8 @@ const CsvUpload = () => {
         }
       }
 
-      // Set final results
-      setResults({
+      // Prepare final results
+      const finalResults = {
         predictions: allResults,
         errors: allErrors,
         summary: {
@@ -565,8 +676,19 @@ const CsvUpload = () => {
           successful: allResults.length,
           failed: allErrors.length,
         },
-      });
+      };
 
+      // Save to Firestore
+      try {
+        await saveToFirestore(finalResults, file.name, csvData.length);
+        toast.success("Predictions saved to your account");
+      } catch (error) {
+        console.error("Error saving to Firestore:", error);
+        toast.error("Failed to save predictions to your account");
+      }
+
+      // Set results for display
+      setResults(finalResults);
       setUploadProgress(100);
       toast.success(`Successfully processed ${processedRecords} records`);
     } catch (error) {
@@ -575,6 +697,126 @@ const CsvUpload = () => {
       toast.error(`Error: ${error.message}`);
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // Update saveToFirestore function to handle large datasets
+  const saveToFirestore = async (result, fileName, recordCount) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not authenticated");
+
+    const CHUNK_SIZE = 100; // Maximum number of predictions per chunk
+    const predictions = result.predictions;
+    const chunks = [];
+
+    // Validate predictions array
+    if (!Array.isArray(predictions) || predictions.length === 0) {
+      throw new Error("No valid predictions to save");
+    }
+
+    // Clean and validate predictions before chunking
+    const cleanedPredictions = predictions
+      .map((pred) => {
+        // Ensure each prediction has required fields
+        if (!pred || typeof pred !== "object") {
+          return null;
+        }
+
+        // Clean the prediction object by removing undefined/null values
+        const cleaned = Object.entries(pred).reduce((acc, [key, value]) => {
+          if (value != null) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {});
+
+        // Ensure the cleaned object has at least some data
+        return Object.keys(cleaned).length > 0 ? cleaned : null;
+      })
+      .filter(Boolean); // Remove any null entries
+
+    if (cleanedPredictions.length === 0) {
+      throw new Error("No valid prediction data to save");
+    }
+
+    // Split valid predictions into chunks
+    for (let i = 0; i < cleanedPredictions.length; i += CHUNK_SIZE) {
+      const chunk = cleanedPredictions.slice(i, i + CHUNK_SIZE);
+      // Only add non-empty chunks
+      if (chunk && chunk.length > 0) {
+        chunks.push(chunk);
+      }
+    }
+
+    try {
+      // Create main document with summary data
+      const mainDocRef = await addDoc(
+        collection(db, "Users", user.uid, "batchPredictions"),
+        {
+          timestamp: serverTimestamp(),
+          fileName: fileName || "Untitled Batch",
+          recordCount: cleanedPredictions.length,
+          summary: {
+            total: cleanedPredictions.length,
+            successful: cleanedPredictions.length,
+            failed: recordCount - cleanedPredictions.length,
+            ...result.summary,
+          },
+          totalChunks: chunks.length,
+          errors: Array.isArray(result.errors) ? result.errors : [],
+        }
+      );
+
+      // Save chunks with retry logic
+      const chunksCollection = collection(
+        db,
+        "Users",
+        user.uid,
+        "batchPredictions",
+        mainDocRef.id,
+        "chunks"
+      );
+
+      // Save chunks in parallel with retry logic
+      await Promise.all(
+        chunks.map(async (chunk, index) => {
+          // Skip empty chunks
+          if (!chunk || chunk.length === 0) return;
+
+          const chunkData = {
+            predictions: chunk,
+            chunkIndex: index,
+            count: chunk.length,
+          };
+
+          // Validate chunk data before saving
+          if (!chunkData.predictions || chunkData.predictions.length === 0) {
+            console.error(`Skipping empty chunk ${index}`);
+            return;
+          }
+
+          for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+            try {
+              await setDoc(doc(chunksCollection, `chunk_${index}`), chunkData);
+              break;
+            } catch (error) {
+              console.error(
+                `Error saving chunk ${index}, attempt ${attempt + 1}:`,
+                error
+              );
+              if (attempt === MAX_RETRIES - 1) throw error;
+              await new Promise((resolve) =>
+                setTimeout(resolve, RETRY_DELAY * (attempt + 1))
+              );
+            }
+          }
+        })
+      );
+
+      return mainDocRef.id;
+    } catch (error) {
+      console.error("Error saving to Firestore:", error);
+      throw error;
     }
   };
 
@@ -606,27 +848,6 @@ const CsvUpload = () => {
     toast.info("File cleared");
   };
 
-  // Save to Firestore with retry
-  const saveToFirestore = async (result, fileName, recordCount) => {
-    const user = auth.currentUser;
-    if (!user) throw new Error("User not authenticated");
-
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      try {
-        await addDoc(collection(db, "Users", user.uid, "csvPredictions"), {
-          timestamp: serverTimestamp(),
-          fileName,
-          recordCount,
-          results: result,
-        });
-        return;
-      } catch (error) {
-        if (attempt === MAX_RETRIES - 1) throw error;
-        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
-      }
-    }
-  };
-
   const renderValidationStatus = () => (
     <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
       <div className="flex items-center justify-between mb-2">
@@ -654,23 +875,46 @@ const CsvUpload = () => {
         </span>
       </div>
 
-      {showValidationDetails && validationStatus.imputationStats && (
-        <div className="mt-4">
-          <h5 className="text-sm font-medium text-gray-700 mb-2">
-            Missing Values Summary:
-          </h5>
-          <div className="grid grid-cols-2 gap-4">
-            {Object.entries(validationStatus.imputationStats)
-              .filter(([_, count]) => count > 0)
-              .map(([column, count]) => (
-                <div key={column} className="text-sm">
-                  <span className="font-medium">{column}:</span>{" "}
-                  <span className="text-blue-600">
-                    {count} values will be filled
-                  </span>
-                </div>
-              ))}
-          </div>
+      {showValidationDetails && validationStatus.details && (
+        <div className="mt-4 space-y-3">
+          {validationStatus.details.missing &&
+            validationStatus.details.missing.length > 0 && (
+              <div className="bg-red-50 p-3 rounded-md">
+                <h5 className="text-sm font-medium text-red-800 mb-2">
+                  Missing Columns:
+                </h5>
+                <ul className="list-disc pl-5 space-y-1">
+                  {validationStatus.details.missing.map((col, idx) => (
+                    <li key={idx} className="text-sm text-red-600">
+                      {col}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+          {validationStatus.details.found &&
+            validationStatus.details.found.length > 0 && (
+              <div className="bg-green-50 p-3 rounded-md">
+                <h5 className="text-sm font-medium text-green-800 mb-2">
+                  Found Columns:
+                </h5>
+                <ul className="list-disc pl-5 space-y-1">
+                  {validationStatus.details.found.map((col, idx) => (
+                    <li key={idx} className="text-sm text-green-600">
+                      {col}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+          {validationStatus.details.rowCount && (
+            <div className="text-sm text-gray-600">
+              <p>Total Rows: {validationStatus.details.rowCount}</p>
+              <p>Total Columns: {validationStatus.details.columnCount}</p>
+            </div>
+          )}
         </div>
       )}
     </div>
