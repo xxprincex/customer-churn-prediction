@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Papa from "papaparse";
@@ -31,6 +31,29 @@ const ALLOWED_MIME_TYPES = ["text/csv", "application/vnd.ms-excel"];
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
 
+// Define required columns for the CSV file
+const REQUIRED_COLUMNS = [
+  "CustomerID",
+  "Tenure",
+  "PreferredLoginDevice",
+  "CityTier",
+  "WarehouseToHome",
+  "PreferredPaymentMode",
+  "Gender",
+  "HourSpendOnApp",
+  "NumberOfDeviceRegistered",
+  "PreferedOrderCat",
+  "SatisfactionScore",
+  "MaritalStatus",
+  "NumberOfAddress",
+  "Complain",
+  "OrderAmountHikeFromlastYear",
+  "CouponUsed",
+  "OrderCount",
+  "DaySinceLastOrder",
+  "CashbackAmount",
+];
+
 // Add this helper at the top of the component
 function hasPremiumAccess(userData) {
   if (!userData) return false;
@@ -62,7 +85,7 @@ const CsvUpload = () => {
   const [showValidationDetails, setShowValidationDetails] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
-  const OnlineStatus = useOnlineStatus();
+  const isOnline = useOnlineStatus();
   const [retryCount, setRetryCount] = useState(0);
   const [isCancelled, setIsCancelled] = useState(false);
   const abortControllerRef = useRef(null);
@@ -158,142 +181,192 @@ const CsvUpload = () => {
     return errors;
   };
 
-  // Enhanced file validation
-  const validateFile = (file) => {
-    return new Promise((resolve, reject) => {
-      if (!file) {
-        setValidationStatus({
-          isValid: false,
-          type: "error",
-          message: "Please select a file to upload",
-        });
-        reject(new Error("No file selected"));
-        return;
+  // Centralized error handler
+  const handleError = useCallback((error, context = "") => {
+    console.error(`Error in ${context}:`, error);
+
+    let errorDetails = {
+      type: "system",
+      category: "unknown",
+      message: "An unexpected error occurred. Please try again.",
+      timestamp: new Date().toISOString(),
+      context,
+    };
+
+    try {
+      // If error is a stringified JSON object, parse it
+      if (typeof error === "string" && error.startsWith("{")) {
+        errorDetails = { ...errorDetails, ...JSON.parse(error) };
+      } else if (error instanceof Error) {
+        errorDetails.message = error.message;
+      } else if (typeof error === "string") {
+        errorDetails.message = error;
       }
 
-      // Check file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        setValidationStatus({
-          isValid: false,
-          type: "error",
-          message: "File size exceeds 5MB limit",
-        });
-        reject(new Error("File too large"));
-        return;
+      // Handle specific error types
+      if (errorDetails.message.includes("Missing required columns")) {
+        errorDetails.type = "validation";
+        errorDetails.category = "missing_columns";
+      } else if (errorDetails.message.includes("File size exceeds")) {
+        errorDetails.type = "validation";
+        errorDetails.category = "file_size";
+        errorDetails.message = "The file is too large. Maximum size is 5MB.";
+      } else if (errorDetails.message.includes("Invalid file type")) {
+        errorDetails.type = "validation";
+        errorDetails.category = "file_type";
+        errorDetails.message = "Please upload a valid CSV file.";
+      } else if (errorDetails.message.includes("Empty CSV file")) {
+        errorDetails.type = "validation";
+        errorDetails.category = "empty_file";
+        errorDetails.message = "The uploaded file is empty.";
       }
 
-      // Check file type
-      if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
-        setValidationStatus({
-          isValid: false,
-          type: "error",
-          message: "Please upload a valid CSV file",
-        });
-        reject(new Error("Invalid file type"));
-        return;
-      }
+      // Set validation status with error details
+      setValidationStatus({
+        isValid: false,
+        type: "error",
+        message: errorDetails.message,
+        details: errorDetails,
+      });
 
-      // Column name mapping for common variations
-      const columnMapping = {
-        customerid: "CustomerID",
-        tenure: "Tenure",
-        preferredlogindevice: "PreferredLoginDevice",
-        citytier: "CityTier",
-        warehousetohome: "WarehouseToHome",
-        preferredpaymentmode: "PreferredPaymentMode",
-        gender: "Gender",
-        hourspendonapp: "HourSpendOnApp",
-        numberofdeviceregistered: "NumberOfDeviceRegistered",
-        preferedordercat: "PreferedOrderCat",
-        satisfactionscore: "SatisfactionScore",
-        maritalstatus: "MaritalStatus",
-        numberofaddress: "NumberOfAddress",
-        complain: "Complain",
-        orderamounthikefromlastyear: "OrderAmountHikeFromlastYear",
-        couponused: "CouponUsed",
-        ordercount: "OrderCount",
-        daysincelastorder: "DaySinceLastOrder",
-        cashbackamount: "CashbackAmount",
-      };
-
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          const headers = results.meta.fields || [];
-
-          // Normalize headers by removing spaces and converting to lowercase
-          const normalizedHeaders = headers.map((h) =>
-            h.replace(/\s+/g, "").toLowerCase()
-          );
-
-          // Check for missing required columns with better error handling
-          const missingColumns = [];
-          const foundColumns = [];
-
-          Object.keys(columnMapping).forEach((requiredCol) => {
-            if (
-              !normalizedHeaders.some((header) =>
-                header.includes(requiredCol.toLowerCase())
-              )
-            ) {
-              missingColumns.push(columnMapping[requiredCol]);
-            } else {
-              foundColumns.push(columnMapping[requiredCol]);
-            }
-          });
-
-          if (missingColumns.length > 0) {
-            const errorMessage = {
-              isValid: false,
-              type: "error",
-              message: "Missing required columns",
-              details: {
-                missing: missingColumns,
-                found: foundColumns,
-                original: headers,
-              },
-            };
-            setValidationStatus(errorMessage);
-
-            // Show a more helpful toast message
-            toast.error(
-              <div>
-                <p>Your CSV file is missing some required columns.</p>
-                <p>Missing: {missingColumns.join(", ")}</p>
-                <p className="text-sm mt-2">
+      // Show appropriate toast notification based on error type
+      if (errorDetails.type === "validation") {
+        if (errorDetails.category === "missing_columns") {
+          toast.error(
+            <div>
+              <p className="font-medium">Missing Required Columns</p>
+              <p className="mt-2">
+                The following columns are required but missing:
+              </p>
+              <ul className="list-disc pl-5 mt-2">
+                {errorDetails.missingColumns?.map((col, idx) => (
+                  <li key={idx} className="text-sm">
+                    {col}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2">
+                <p className="text-sm">
                   Tip: Download our template for the correct format
                 </p>
-              </div>,
-              { autoClose: 8000 }
-            );
+                <button
+                  onClick={handleDownloadTemplate}
+                  className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+                >
+                  Download Template
+                </button>
+              </div>
+            </div>,
+            { autoClose: 8000 }
+          );
+        } else {
+          toast.error(
+            <div>
+              <p className="font-medium">Validation Error</p>
+              <p className="mt-2">{errorDetails.message}</p>
+            </div>,
+            { autoClose: 5000 }
+          );
+        }
+      } else {
+        toast.error(
+          <div>
+            <p className="font-medium">System Error</p>
+            <p className="mt-2">{errorDetails.message}</p>
+            <p className="mt-2 text-sm text-gray-600">
+              Please try again or contact support if the problem persists.
+            </p>
+          </div>,
+          { autoClose: 5000 }
+        );
+      }
 
-            reject(new Error("Missing required columns"));
-            return;
-          }
-
-          // If we get here, validation passed
-          setValidationStatus({
-            isValid: true,
-            type: "success",
-            message: "File validation successful",
-            details: {
-              rowCount: results.data.length,
-              columnCount: headers.length,
-            },
-          });
-
-          resolve(true);
-        },
-        error: (error) => {
-          setValidationStatus({
-            isValid: false,
-            type: "error",
-            message: "Error parsing CSV file: " + error.message,
-          });
-          reject(error);
-        },
+      return errorDetails;
+    } catch (e) {
+      console.error("Error in error handler:", e);
+      // Fallback error handling
+      setValidationStatus({
+        isValid: false,
+        type: "error",
+        message: "An unexpected error occurred",
+        details: { type: "system", category: "handler_error" },
       });
+      toast.error("An unexpected error occurred. Please try again.");
+      return errorDetails;
+    }
+  }, []);
+
+  const validateFile = (file) => {
+    return new Promise((resolve, reject) => {
+      try {
+        if (!file) {
+          handleError("Please select a file to upload", "file selection");
+          return;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+          handleError("File size exceeds 5MB limit", "file size validation");
+          return;
+        }
+
+        if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
+          handleError("Please upload a valid CSV file", "file type validation");
+          return;
+        }
+
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            try {
+              if (!results.data || results.data.length === 0) {
+                handleError("The CSV file is empty", "CSV parsing");
+                return;
+              }
+
+              const headers = Object.keys(results.data[0] || {});
+              const missingColumns = REQUIRED_COLUMNS.filter(
+                (col) =>
+                  !headers.some(
+                    (header) => header.toLowerCase() === col.toLowerCase()
+                  )
+              );
+
+              if (missingColumns.length > 0) {
+                const errorDetails = {
+                  type: "validation",
+                  category: "missing_columns",
+                  message: `Missing ${missingColumns.length} required column${missingColumns.length > 1 ? "s" : ""}`,
+                  missingColumns,
+                  foundColumns: headers,
+                  totalColumns: headers.length,
+                  requiredColumns: REQUIRED_COLUMNS,
+                };
+                handleError(JSON.stringify(errorDetails), "column validation");
+                return;
+              }
+
+              setValidationStatus({
+                isValid: true,
+                type: "success",
+                message: "File validation successful",
+                details: {
+                  totalColumns: headers.length,
+                  totalRows: results.data.length,
+                },
+              });
+              resolve(results);
+            } catch (error) {
+              handleError(error, "CSV processing");
+            }
+          },
+          error: (error) => {
+            handleError(error, "CSV parsing");
+          },
+        });
+      } catch (error) {
+        handleError(error, "file validation");
+      }
     });
   };
 
@@ -548,29 +621,21 @@ const CsvUpload = () => {
     toast.success("Template downloaded successfully");
   };
 
-  // Modify the handleUpload function to use the missing value handler
+  // Modify the handleUpload function to use the error handler
   const handleUpload = async () => {
-    if (!file) {
-      toast.error("Please select a file first");
-      return;
-    }
-
     try {
+      if (!file) {
+        const error = new Error("Please select a file first");
+        handleError(error, "upload initialization");
+        return;
+      }
+
       setIsUploading(true);
       setUploadProgress(0);
       setError(null);
 
-      // Parse CSV file first
-      const parseResult = await new Promise((resolve, reject) => {
-        Papa.parse(file, {
-          header: true,
-          skipEmptyLines: true,
-          complete: resolve,
-          error: reject,
-        });
-      });
-
-      let csvData = parseResult.data;
+      const results = await validateFile(file);
+      let csvData = results.data;
       let processingErrors = [];
 
       // Handle missing values and validate data before processing
@@ -779,9 +844,8 @@ const CsvUpload = () => {
         );
       }
     } catch (error) {
-      console.error("Upload error:", error);
+      handleError(error, "file upload");
       setError(error.message);
-      toast.error(`Error: ${error.message}`);
     } finally {
       setIsUploading(false);
     }
@@ -979,35 +1043,12 @@ const CsvUpload = () => {
                 </ul>
               </div>
             )}
-
-          {validationStatus.details.found &&
-            validationStatus.details.found.length > 0 && (
-              <div className="bg-green-50 p-3 rounded-md">
-                <h5 className="text-sm font-medium text-green-800 mb-2">
-                  Found Columns:
-                </h5>
-                <ul className="list-disc pl-5 space-y-1">
-                  {validationStatus.details.found.map((col, idx) => (
-                    <li key={idx} className="text-sm text-green-600">
-                      {col}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-          {validationStatus.details.rowCount && (
-            <div className="text-sm text-gray-600">
-              <p>Total Rows: {validationStatus.details.rowCount}</p>
-              <p>Total Columns: {validationStatus.details.columnCount}</p>
-            </div>
-          )}
         </div>
       )}
     </div>
   );
 
-  if (OnlineStatus === false) {
+  if (isOnline === false) {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="text-center p-8 bg-red-50 rounded-lg shadow-md">
