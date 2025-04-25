@@ -1,6 +1,6 @@
 import pickle
 import numpy as np
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
@@ -19,7 +19,7 @@ load_dotenv()
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='dist', static_url_path='')
 
 # Configure CORS
 CORS(app, resources={
@@ -566,7 +566,17 @@ def predict_batch():
 
 @app.route('/')
 def home():
-    return "Customer Churn Prediction API is running!"
+    return send_from_directory(app.static_folder, 'index.html')
+
+# Add catch-all route for client-side routing
+@app.route('/<path:path>')
+def catch_all(path):
+    try:
+        # First try to serve actual files
+        return send_from_directory(app.static_folder, path)
+    except:
+        # If file not found, serve index.html for client-side routing
+        return send_from_directory(app.static_folder, 'index.html')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))

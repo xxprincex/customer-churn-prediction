@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Customer Churn Prediction Web Application",
   "scripts": {
-    "build": "parcel build index.html --dist-dir dist",
+    "clean": "rm -rf dist .parcel-cache",
+    "build": "npm run clean && parcel build index.html --no-cache --dist-dir dist",
     "start": "parcel index.html",
     "test": "jest --coverage",
     "lint": "eslint src/**/*.{js,jsx}",
