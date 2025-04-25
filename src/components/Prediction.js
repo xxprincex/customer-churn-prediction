@@ -336,26 +336,8 @@ const Prediction = () => {
         throw new Error(`Validation failed: ${validationErrors.join(", ")}`);
       }
 
-      // Step 4: Log processed data for debugging
-      console.log("Processed data for prediction:", {
-        numericFields: {
-          Tenure: processedData.Tenure,
-          SatisfactionScore: processedData.SatisfactionScore,
-          OrderCount: processedData.OrderCount,
-          DaySinceLastOrder: processedData.DaySinceLastOrder,
-          NumberOfDeviceRegistered: processedData.NumberOfDeviceRegistered,
-        },
-        categoricalFields: {
-          PreferredLoginDevice: processedData.PreferredLoginDevice,
-          PreferredPaymentMode: processedData.PreferredPaymentMode,
-          Gender: processedData.Gender,
-          PreferedOrderCat: processedData.PreferedOrderCat,
-          MaritalStatus: processedData.MaritalStatus,
-        },
-      });
-
-      // Step 5: Send data to backend
-      const response = await fetch("http://localhost:5000/predict", {
+      // Step 4: Send data to backend
+      const result = await fetch("http://localhost:5000/predict", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -363,14 +345,15 @@ const Prediction = () => {
         body: JSON.stringify(processedData),
       });
 
-      const result = await response.json();
-      console.log("Prediction response:", result);
+      const formattedPrediction = await result.json();
 
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to get prediction");
+      if (!result.ok) {
+        throw new Error(
+          formattedPrediction.error || "Failed to get prediction"
+        );
       }
 
-      // Step 6: Process and format prediction results
+      // Step 5: Process and format prediction results
       const adjustRiskBasedOnFactors = (originalProbability, formData) => {
         let riskScore = 0;
         let riskFactors = [];
@@ -432,11 +415,11 @@ const Prediction = () => {
       };
 
       const { adjustedProbability, riskFactors } = adjustRiskBasedOnFactors(
-        result.churn_probability,
+        formattedPrediction.churn_probability,
         processedData
       );
 
-      const formattedPrediction = {
+      const formattedPredictionResult = {
         prediction: adjustedProbability > 0.3 ? 1 : 0,
         churn_probability: adjustedProbability,
         stay_probability: 1 - adjustedProbability,
@@ -450,7 +433,7 @@ const Prediction = () => {
         ),
       };
 
-      setPrediction(formattedPrediction);
+      setPrediction(formattedPredictionResult);
 
       // Update daily prediction count for free users
       if (!hasPremiumAccess) {
@@ -480,7 +463,7 @@ const Prediction = () => {
       }
 
       // Show appropriate toast message based on adjusted prediction
-      if (formattedPrediction.prediction === 1) {
+      if (formattedPredictionResult.prediction === 1) {
         if (adjustedProbability > 0.7) {
           toast.error(
             "⚠️ High risk of churn detected! Immediate action required."

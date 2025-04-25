@@ -382,9 +382,7 @@ const Account = () => {
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        console.log("No authenticated user found");
-        setLoading(false);
-        return;
+        return null;
       }
 
       const predictionsRef = collection(
@@ -428,8 +426,7 @@ const Account = () => {
       setIsActivating(true);
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        console.error("No user found when trying to activate Gold plan");
-        return;
+        return null;
       }
 
       console.log("Activating Gold plan for user:", currentUser.uid);
@@ -587,7 +584,7 @@ const Account = () => {
   };
 
   // Update checkPaymentStatus to be more resilient
-  const checkPaymentStatus = async () => {
+  const checkPaymentStatus = async (sessionId) => {
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) return;
@@ -942,9 +939,7 @@ const Account = () => {
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
-        console.log("No authenticated user found");
-        setLoadingBatch(false);
-        return;
+        return null;
       }
 
       const batchPredictionsRef = collection(
