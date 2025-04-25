@@ -93,7 +93,9 @@ const Register = () => {
         try {
           // Send email verification with custom settings
           const actionCodeSettings = {
-            url: window.location.origin + "/login",
+            url:
+              process.env.REACT_APP_API_URL ||
+              window.location.origin + "/login",
             handleCodeInApp: true,
           };
 

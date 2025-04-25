@@ -1272,8 +1272,8 @@ const BatchPredictionDetail = () => {
           {/* Main content */}
           <div className="flex justify-center items-center min-h-[400px]">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#1d5a7b]"></div>
-          </div>
         </div>
+      </div>
       </div>
     );
   }
@@ -1368,28 +1368,28 @@ const BatchPredictionDetail = () => {
                   Back to History
                 </button>
               </div>
+              </div>
             </div>
-          </div>
 
-          {/* View Mode Tabs */}
-          <div className="flex space-x-4 mb-6">
+            {/* View Mode Tabs */}
+            <div className="flex space-x-4 mb-6">
             {["summary", "table", "charts"].map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`px-4 py-2 rounded-full ${
-                  viewMode === mode
-                    ? "bg-[#1d5a7b] text-white"
-                    : "bg-gray-200 text-gray-700"
-                }`}
-              >
-                {mode.charAt(0).toUpperCase() + mode.slice(1)}
-              </button>
-            ))}
-          </div>
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`px-4 py-2 rounded-full ${
+                    viewMode === mode
+                      ? "bg-[#1d5a7b] text-white"
+                      : "bg-gray-200 text-gray-700"
+                  }`}
+                >
+                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                </button>
+              ))}
+            </div>
 
-          {/* Content based on view mode */}
-          <div className="mt-6">
+            {/* Content based on view mode */}
+            <div className="mt-6">
             {viewMode === "summary" && (
               <SummaryView data={{ batchData, predictions }} />
             )}
@@ -1399,10 +1399,10 @@ const BatchPredictionDetail = () => {
             {viewMode === "charts" && (
               <ChartsView data={{ batchData, predictions }} />
             )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
   );
 };
 
