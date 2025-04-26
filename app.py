@@ -1,6 +1,6 @@
 import pickle
 import numpy as np
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
@@ -21,10 +21,21 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 # Initialize Flask app with correct static folder configuration
 app = Flask(__name__, static_folder='dist')
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
-# Configure CORS
-CORS(app)
+# Configure CORS properly
+CORS(app, resources={
+    r"/api/*": {"origins": "*"},
+    r"/*": {"origins": "*"}
+})
+
+# Add security headers
+@app.after_request
+def add_security_headers(response):
+    response.headers['Permissions-Policy'] = 'interest-cohort=()'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    return response
 
 # Initialize Firebase Admin
 try:
@@ -560,10 +571,19 @@ def predict_batch():
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    if path and os.path.exists(app.static_folder + '/' + path):
+    # First, try to serve static files
+    if path and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
-    else:
-        return send_from_directory(app.static_folder, 'index.html')
+    
+    # For API routes, return 404
+    if path.startswith('api/'):
+        return jsonify({"error": "Not found"}), 404
+        
+    # For all other routes, serve index.html
+    try:
+        return send_file(os.path.join(app.static_folder, 'index.html'))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))

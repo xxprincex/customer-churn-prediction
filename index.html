@@ -1,15 +1,34 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>customer churn prediction</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta name="description" content="Customer Churn Prediction Application" />
+    <title>Customer Churn Prediction</title>
+    <!-- Preconnect to required origins -->
+    <link
+      rel="preconnect"
+      href="https://www.googletagmanager.com"
+      crossorigin
+    />
+    <!-- Google Analytics -->
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-03XW3FWG7L"
+    ></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        try {
+          dataLayer.push(arguments);
+        } catch (e) {
+          console.warn("Analytics blocked or failed");
+        }
+      }
+    </script>
   </head>
   <body>
-    <div id="root">
-      <h1>Not Render</h1>
-    </div>
-    <script type="module" src="/src/app.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/index.js"></script>
   </body>
 </html>
