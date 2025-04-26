@@ -19,7 +19,10 @@ load_dotenv()
 STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
-app = Flask(__name__, static_folder='dist', static_url_path='')
+app = Flask(__name__, 
+            static_folder='dist',
+            static_url_path='',
+            template_folder='dist')
 
 # Configure CORS
 CORS(app)
@@ -555,11 +558,10 @@ def predict_batch():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Serve static files from the React app
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    if path and os.path.exists(os.path.join(app.static_folder, path)):
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     else:
         return send_from_directory(app.static_folder, 'index.html')
