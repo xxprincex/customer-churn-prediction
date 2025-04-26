@@ -738,7 +738,7 @@ const CsvUpload = () => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-          const response = await fetch(`${API_URL}/predict-batch`, {
+          const response = await fetch(`${API_URL}/api/predict-batch`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

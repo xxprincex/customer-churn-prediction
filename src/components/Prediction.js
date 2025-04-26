@@ -339,7 +339,7 @@ const Prediction = () => {
       }
 
       // Step 4: Send data to backend
-      const result = await fetch(`${API_URL}/predict`, {
+      const result = await fetch(`${API_URL}/api/predict`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
