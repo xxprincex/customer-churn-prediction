@@ -30,6 +30,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIME_TYPES = ["text/csv", "application/vnd.ms-excel"];
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000; // 2 seconds
+const API_URL = process.env.REACT_APP_API_URL;
 
 // Define required columns for the CSV file
 const REQUIRED_COLUMNS = [
@@ -737,7 +738,7 @@ const CsvUpload = () => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-          const response = await fetch("http://localhost:5000/predict-batch", {
+          const response = await fetch(`${API_URL}/predict-batch`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

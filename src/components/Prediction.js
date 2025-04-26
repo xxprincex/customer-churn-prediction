@@ -20,6 +20,8 @@ import { auth } from "../firebase";
 import CsvUpload from "./CsvUpload";
 import { useLocation } from "react-router-dom";
 
+const API_URL = process.env.REACT_APP_API_URL;
+
 // Function to generate a unique customer ID
 const generateCustomerId = async () => {
   try {
@@ -337,7 +339,7 @@ const Prediction = () => {
       }
 
       // Step 4: Send data to backend
-      const result = await fetch("http://localhost:5000/predict", {
+      const result = await fetch(`${API_URL}/predict`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
