@@ -568,18 +568,19 @@ def predict_batch():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# Serve React app - this should be at the end of all API routes
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve(path):
-    # First, try to serve static files
+    # If the path starts with api/, return 404 as it should be handled by API routes
+    if path.startswith('api/'):
+        return jsonify({"error": "API endpoint not found"}), 404
+        
+    # For non-API routes, try to serve static files
     if path and os.path.exists(os.path.join(app.static_folder, path)):
         return send_from_directory(app.static_folder, path)
     
-    # For API routes, return 404
-    if path.startswith('api/'):
-        return jsonify({"error": "Not found"}), 404
-        
-    # For all other routes, serve index.html
+    # For all other routes (including unknown paths), serve index.html
     try:
         return send_file(os.path.join(app.static_folder, 'index.html'))
     except Exception as e:
