@@ -14,6 +14,10 @@ npm run build
 echo "Creating dist directory..."
 mkdir -p dist
 
+# Ensure proper permissions
+echo "Setting file permissions..."
+chmod -R 755 dist
+
 # Install Python dependencies
 echo "Installing Python dependencies..."
 if [ ! -f "requirements.txt" ]; then
