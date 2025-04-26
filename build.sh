@@ -1,18 +1,25 @@
 #!/bin/bash
 
-# Build React app
-cd client
+# Exit on error
+set -e
+
+echo "Starting build process..."
+
+# Install dependencies and build
+echo "Installing dependencies and building..."
 npm install
 npm run build
-cd ..
 
 # Create dist directory if it doesn't exist
-mkdir -p server/dist
-
-# Copy build files to Flask's dist directory
-cp -r client/build/* server/dist/
+echo "Creating dist directory..."
+mkdir -p dist
 
 # Install Python dependencies
-cd server
+echo "Installing Python dependencies..."
+if [ ! -f "requirements.txt" ]; then
+    echo "Error: requirements.txt not found"
+    exit 1
+fi
 pip install -r requirements.txt
-cd .. 
+
+echo "Build completed successfully!" 
