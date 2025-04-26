@@ -25,7 +25,6 @@ import {
   FaSpinner,
   FaExclamationTriangle,
 } from "react-icons/fa";
-import config from "../config";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIME_TYPES = ["text/csv", "application/vnd.ms-excel"];
@@ -738,15 +737,13 @@ const CsvUpload = () => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-          const response = await fetch(`${config.API_URL}/predict-batch`, {
+          const response = await fetch("http://localhost:5000/predict-batch", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              data: processedData,
-              customerIds: batchData.customerIds,
-            }),
+            body: JSON.stringify(batchData),
+            signal: controller.signal,
           });
 
           clearTimeout(timeoutId);
