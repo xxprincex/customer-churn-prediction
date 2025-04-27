@@ -1,9 +1,9 @@
 import React, { useState, useRef } from "react";
 import { FaGithub, FaInstagram, FaEnvelope, FaPhone } from "react-icons/fa";
 import { toast } from "react-toastify";
-import akanksha from "../utils/akanksha.png";
-import saloni from "../utils/saloni.png";
-import prince from "../utils/prince.png";
+import akanksha from "../utils/akanksha.jpg";
+import saloni from "../utils/saloni.jpg";
+import prince from "../utils/prince.jpg";
 import emailjs from "@emailjs/browser";
 
 // Initialize EmailJS
@@ -190,7 +190,7 @@ Sent on: ${timestamp}
             <img
               src={dev.avatar}
               alt={dev.name}
-              className="w-32 h-32 rounded-full object-cover shadow-md border-4 border-white"
+              className="w-42 h-42 rounded-full object-cover shadow-md border-4 border-white"
             />
             <h2 className="text-xl font-medium mt-4">{dev.name}</h2>
             <p className="text-[#1d5a7b] mb-4">{dev.role}</p>
