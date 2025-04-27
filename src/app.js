@@ -74,88 +74,91 @@ const AppLayout = ({ user }) => {
 };
 
 const appRouter = (user) =>
-  createBrowserRouter([
+  createBrowserRouter(
+    [
+      {
+        path: "/",
+        element: <AppLayout user={user} />,
+        children: [
+          {
+            path: "/",
+            element: <Body />,
+          },
+          {
+            path: "/aboutp",
+            element: <Aboutp />,
+          },
+          {
+            path: "/contact",
+            element: <Contact />,
+          },
+          {
+            path: "/prediction",
+            element: (
+              <ProtectedRoute user={user}>
+                <Prediction />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "/register",
+            element: (
+              <AuthRoute user={user}>
+                <Register />
+              </AuthRoute>
+            ),
+          },
+          {
+            path: "/login",
+            element: (
+              <AuthRoute user={user}>
+                <Login />
+              </AuthRoute>
+            ),
+          },
+          {
+            path: "/account",
+            element: (
+              <ProtectedRoute user={user}>
+                <Account />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "/prediction-detail/:predictionId",
+            element: (
+              <ProtectedRoute user={user}>
+                <PredictionDetail />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "/csv-upload",
+            element: (
+              <ProtectedRoute user={user}>
+                <CsvUpload />
+              </ProtectedRoute>
+            ),
+          },
+          {
+            path: "/batch-prediction-detail/:id",
+            element: (
+              <ProtectedRoute user={user}>
+                <BatchPredictionDetail />
+              </ProtectedRoute>
+            ),
+          },
+        ],
+        errorElement: <Error />,
+      },
+    ],
     {
-      path: "/",
-      element: <AppLayout user={user} />,
-      children: [
-        {
-          path: "/",
-          element: <Body />,
-        },
-        {
-          path: "/aboutp",
-          element: <Aboutp />,
-        },
-        {
-          path: "/contact",
-          element: <Contact />,
-        },
-        {
-          path: "/prediction",
-          element: (
-            <ProtectedRoute user={user}>
-              <Prediction />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "/register",
-          element: (
-            <AuthRoute user={user}>
-              <Register />
-            </AuthRoute>
-          ),
-        },
-        {
-          path: "/login",
-          element: (
-            <AuthRoute user={user}>
-              <Login />
-            </AuthRoute>
-          ),
-        },
-        {
-          path: "/account",
-          element: (
-            <ProtectedRoute user={user}>
-              <Account />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "/prediction-detail/:predictionId",
-          element: (
-            <ProtectedRoute user={user}>
-              <PredictionDetail />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "/csv-upload",
-          element: (
-            <ProtectedRoute user={user}>
-              <CsvUpload />
-            </ProtectedRoute>
-          ),
-        },
-        {
-          path: "/batch-prediction-detail/:id",
-          element: (
-            <ProtectedRoute user={user}>
-              <BatchPredictionDetail />
-            </ProtectedRoute>
-          ),
-        },
-      ],
-      errorElement: <Error />,
-    },
-  ], {
-    future: {
-      v7_startTransition: true,
-      v7_relativeSplatPath: true
+      future: {
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      },
     }
-  });
+  );
 
 // Create root only if it doesn't exist
 let root;
