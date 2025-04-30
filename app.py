@@ -300,11 +300,11 @@ def webhook():
         print("Warning: Stripe webhook secret is not set!")
         return jsonify({'error': 'Stripe webhook secret is not configured'}), 500
 
-    event = None
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature')
 
     if not sig_header:
+        print("No Stripe signature header")
         return jsonify({'error': 'No Stripe signature header'}), 400
 
     try:
@@ -317,85 +317,57 @@ def webhook():
     except stripe.error.SignatureVerificationError as e:
         print("Invalid signature:", e)
         return jsonify({'error': 'Invalid signature'}), 400
-    except Exception as e:
-        print("Unexpected error:", e)
-        return jsonify({'error': 'Unexpected error processing webhook'}), 500
 
     # Handle the checkout.session.completed event
     if event['type'] == 'checkout.session.completed':
         try:
             session = event['data']['object']
-            print(f"Processing completed checkout session: {session.get('id')}")
-            
-            # Get customer email from the session
-            customer_email = session.get('customer_details', {}).get('email')
-            print(f"Customer email from session: {customer_email}")
-            
-            if not customer_email:
-                print("No customer email found in session.")
-                return jsonify({'error': 'No customer email in session'}), 400
 
-            # Query Firestore with timeout and retry
-            users_ref = db.collection('Users')
-            MAX_RETRIES = 3
-            TIMEOUT = 30  # 30 seconds timeout
+            # Get firebase_uid from Stripe session metadata
+            firebase_uid = session.get('metadata', {}).get('firebase_uid')
+            print(f"Received firebase_uid from Stripe: {firebase_uid}")
 
-            for attempt in range(MAX_RETRIES):
-                try:
-                    # Get all users to debug
-                    print("Querying all users in Users collection...")
-                    all_users = list(users_ref.stream())
-                    print(f"Total users found: {len(all_users)}")
-                    for user in all_users:
-                        print(f"Found user: {user.id} with data: {user.to_dict()}")
+            if not firebase_uid:
+                print("No firebase_uid found in Stripe session metadata.")
+                return jsonify({'error': 'Missing firebase_uid in Stripe session'}), 400
 
-                    # Query for specific user
-                    query = users_ref.where('email', '==', customer_email)
-                    user_docs = list(query.stream())
-                    print(f"Number of matching users found: {len(user_docs)}")
+            # Directly reference the user document using UID
+            user_ref = db.collection('Users').document(firebase_uid)
+            user_doc = user_ref.get()
 
-                    if not user_docs:
-                        print(f"No user found with email: {customer_email}")
-                        return jsonify({'error': 'User not found'}), 404
+            if not user_doc.exists:
+                print(f"No user found with UID: {firebase_uid}")
+                return jsonify({'error': 'User not found'}), 404
 
-                    if len(user_docs) > 1:
-                        print(f"Warning: Multiple users found with email: {customer_email}")
+            # Update user data
+            now = datetime.now()
+            subscription_end = now + timedelta(days=30)
 
-                    for user_doc in user_docs:
-                        print(f"Updating user doc: {user_doc.id}")
-                        now = datetime.now()
-                        subscription_end = now + timedelta(days=30)
-                        
-                        update_data = {
-                            'subscriptionPlan': 'gold',
-                            'trialUsed': True,
-                            'trialEndDate': None,
-                            'trialStartDate': None,
-                            'subscriptionStartDate': now,
-                            'subscriptionEndDate': subscription_end,
-                            'lastUpdated': now,
-                            'stripeSessionId': session.get('id')
-                        }
+            update_data = {
+                'subscriptionPlan': 'gold',
+                'trialUsed': True,
+                'trialEndDate': None,
+                'trialStartDate': None,
+                'subscriptionStartDate': now,
+                'subscriptionEndDate': subscription_end,
+                'lastUpdated': now,
+                'stripeSessionId': session.get('id'),
+            }
 
-                        # Update document directly without transaction
-                        # (Firestore transactions are atomic by default for single documents)
-                        user_doc.reference.update(update_data)
-                        print(f"Successfully updated user: {user_doc.id}")
-                        return jsonify({'status': 'success', 'message': 'Subscription updated'}), 200
+            user_ref.update(update_data)
+            print(f"Successfully updated user {firebase_uid} to gold plan.")
 
-                    break  # Success, exit retry loop
-                except Exception as e:
-                    print(f"Attempt {attempt + 1} failed: {str(e)}")
-                    if attempt == MAX_RETRIES - 1:  # Last attempt
-                        raise
-                    time.sleep(2 ** attempt)  # Exponential backoff
+            return jsonify({'status': 'success', 'message': 'Subscription updated'}), 200
 
         except Exception as e:
             print(f"Error processing checkout session: {str(e)}")
             return jsonify({'error': f'Error processing checkout: {str(e)}'}), 500
 
-    return jsonify({'status': 'success', 'message': 'Event received'}), 200
+    # Optional: handle other events like invoice payment succeeded
+    else:
+        print(f"Ignoring non-checkout event type: {event['type']}")
 
+    return jsonify({'status': 'success', 'message': 'Event received'}), 200
 def validate_and_clean_record(record, customer_id):
     """Validate and clean a single record"""
     try:
