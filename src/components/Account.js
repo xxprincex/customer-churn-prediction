@@ -864,7 +864,7 @@ const Account = () => {
       await deleteUser(user);
 
       toast.success("Account deleted successfully");
-      navigate("/"); // Navigate to home page instead of login
+      navigate("/"); // Navigate to home page
     } catch (error) {
       console.error("Error deleting account:", error);
       if (error.code === "auth/requires-recent-login") {
