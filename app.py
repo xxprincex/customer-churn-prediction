@@ -16,7 +16,8 @@ import json
 
 load_dotenv()
 
-STRIPE_API_KEY = os.getenv("STRIPE_API_KEY")
+# Load Stripe configuration
+STRIPE_API_KEY = os.getenv("STRIPE_SECRET_KEY")  # Use STRIPE_SECRET_KEY from .env
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 # Initialize Flask app with correct static folder configuration
@@ -296,21 +297,27 @@ def predict():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    print(f"Webhook received. STRIPE_WEBHOOK_SECRET exists: {bool(STRIPE_WEBHOOK_SECRET)}")
+    print(f"Endpoint secret exists: {bool(endpoint_secret)}")
+    
     if not endpoint_secret:
         print("Warning: Stripe webhook secret is not set!")
         return jsonify({'error': 'Stripe webhook secret is not configured'}), 500
 
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature')
+    print(f"Stripe-Signature header received: {bool(sig_header)}")
 
     if not sig_header:
         print("No Stripe signature header")
         return jsonify({'error': 'No Stripe signature header'}), 400
 
     try:
+        print(f"Attempting to construct event with signature: {sig_header[:15]}...")
         event = stripe.Webhook.construct_event(
             payload, sig_header, endpoint_secret
         )
+        print(f"Event constructed successfully: {event['type']}")
     except ValueError as e:
         print("Invalid payload:", e)
         return jsonify({'error': 'Invalid payload'}), 400
@@ -322,13 +329,44 @@ def webhook():
     if event['type'] == 'checkout.session.completed':
         try:
             session = event['data']['object']
-
+            print(f"Processing checkout.session.completed event. Session ID: {session.get('id')}")
+            print(f"Session metadata: {session.get('metadata')}")
+            
+            # Check if this is a payment link session
+            payment_link = session.get('payment_link')
+            print(f"Payment link: {payment_link}")
+            
             # Get firebase_uid from Stripe session metadata
             firebase_uid = session.get('metadata', {}).get('firebase_uid')
             print(f"Received firebase_uid from Stripe: {firebase_uid}")
-
+            
+            # If firebase_uid is not in metadata, try to get it from client_reference_id
             if not firebase_uid:
-                print("No firebase_uid found in Stripe session metadata.")
+                client_reference_id = session.get('client_reference_id')
+                print(f"No firebase_uid in metadata. Client reference ID: {client_reference_id}")
+                firebase_uid = client_reference_id
+            
+            if not firebase_uid:
+                # Try to find user by email
+                customer_email = session.get('customer_details', {}).get('email')
+                print(f"No firebase_uid found. Trying to find user by email: {customer_email}")
+                
+                if customer_email:
+                    # Query Firestore for user with matching email
+                    users_ref = db.collection('Users')
+                    query = users_ref.where('email', '==', customer_email).limit(1)
+                    user_docs = query.get()
+                    
+                    if len(user_docs) > 0:
+                        firebase_uid = user_docs[0].id
+                        print(f"Found user by email: {firebase_uid}")
+                    else:
+                        print(f"No user found with email: {customer_email}")
+                else:
+                    print("No customer email available in session")
+            
+            if not firebase_uid:
+                print("No firebase_uid found in Stripe session metadata or client_reference_id.")
                 return jsonify({'error': 'Missing firebase_uid in Stripe session'}), 400
 
             # Directly reference the user document using UID
@@ -338,6 +376,10 @@ def webhook():
             if not user_doc.exists:
                 print(f"No user found with UID: {firebase_uid}")
                 return jsonify({'error': 'User not found'}), 404
+            
+            print(f"Found user document: {user_doc.id}")
+            user_data = user_doc.to_dict()
+            print(f"Current subscription plan: {user_data.get('subscriptionPlan')}")
 
             # Update user data
             now = datetime.now()
@@ -354,6 +396,7 @@ def webhook():
                 'stripeSessionId': session.get('id'),
             }
 
+            print(f"Updating user with data: {update_data}")
             user_ref.update(update_data)
             print(f"Successfully updated user {firebase_uid} to gold plan.")
 

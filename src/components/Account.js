@@ -532,10 +532,13 @@ const Account = () => {
 
       setIsProcessing(true);
 
-      // Add success_url parameter and customer email to redirect URL
+      // Add success_url parameter, customer email, and client_reference_id to redirect URL
       const successUrl = `${window.location.origin}/account?success=true`;
       const paymentLink = "https://buy.stripe.com/test_14k14BbYP3iQfPa4gg";
-      const finalPaymentLink = `${paymentLink}?success_url=${encodeURIComponent(successUrl)}&prefilled_email=${encodeURIComponent(currentUser.email)}`;
+      const finalPaymentLink = `${paymentLink}?success_url=${encodeURIComponent(successUrl)}&prefilled_email=${encodeURIComponent(currentUser.email)}&client_reference_id=${encodeURIComponent(currentUser.uid)}`;
+
+      console.log("Payment link with user ID:", finalPaymentLink);
+      console.log("User ID being passed:", currentUser.uid);
 
       // Redirect to Stripe payment link
       window.location.href = finalPaymentLink;
