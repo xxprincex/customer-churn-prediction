@@ -299,6 +299,7 @@ def predict():
 def webhook():
     print(f"Webhook received. STRIPE_WEBHOOK_SECRET exists: {bool(STRIPE_WEBHOOK_SECRET)}")
     print(f"Endpoint secret exists: {bool(endpoint_secret)}")
+    print(f"Request headers: {request.headers}")
     
     if not endpoint_secret:
         print("Warning: Stripe webhook secret is not set!")
@@ -406,9 +407,199 @@ def webhook():
             print(f"Error processing checkout session: {str(e)}")
             return jsonify({'error': f'Error processing checkout: {str(e)}'}), 500
 
-    # Optional: handle other events like invoice payment succeeded
+    # Handle invoice.payment_succeeded event
+    elif event['type'] == 'invoice.payment_succeeded':
+        try:
+            invoice = event['data']['object']
+            print(f"Processing invoice.payment_succeeded event. Invoice ID: {invoice.get('id')}")
+            print(f"Full invoice data: {invoice}")
+            
+            # Get customer ID from the invoice
+            customer_id = invoice.get('customer')
+            if not customer_id:
+                print("No customer ID found in invoice")
+                return jsonify({'error': 'Missing customer ID in invoice'}), 400
+                
+            # Get subscription ID from the invoice
+            subscription_id = None
+            if invoice.get('subscription'):
+                subscription_id = invoice.get('subscription')
+            elif invoice.get('lines', {}).get('data'):
+                for item in invoice.get('lines', {}).get('data', []):
+                    if item.get('subscription'):
+                        subscription_id = item.get('subscription')
+                        break
+                    if item.get('parent', {}).get('subscription'):
+                        subscription_id = item.get('parent', {}).get('subscription')
+                        break
+            
+            print(f"Found subscription ID: {subscription_id}")
+            
+            # Get customer email from the invoice
+            customer_email = invoice.get('customer_email')
+            print(f"Customer email from invoice: {customer_email}")
+            
+            # If email not found directly, try to get it from customer_details
+            if not customer_email and invoice.get('customer_details', {}):
+                customer_email = invoice.get('customer_details', {}).get('email')
+                print(f"Customer email from customer_details: {customer_email}")
+            
+            # If still no email, try to extract from description
+            if not customer_email and invoice.get('description'):
+                description = invoice.get('description')
+                print(f"Invoice description: {description}")
+                # Try to extract email from description if it contains an email pattern
+                import re
+                email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+                email_matches = re.findall(email_pattern, description)
+                if email_matches:
+                    customer_email = email_matches[0]
+                    print(f"Extracted email from description: {customer_email}")
+            
+            # Special handling for the specific invoice.payment_succeeded format we saw
+            # Look for email in the format: "krishnarajkrishna125@gmail.com's payment for an invoice for INR 999.00 succeeded"
+            if not customer_email:
+                # Try to get from the event description field
+                if invoice.get('description'):
+                    description = invoice.get('description')
+                    apostrophe_index = description.find("'s")
+                    if apostrophe_index > 0:
+                        potential_email = description[:apostrophe_index].strip()
+                        if '@' in potential_email and '.' in potential_email:
+                            customer_email = potential_email
+                            print(f"Extracted email from apostrophe format: {customer_email}")
+                
+                # If not found in description, check if it's in the event data directly
+                if not customer_email and event.get('data', {}).get('object', {}).get('description'):
+                    description = event.get('data', {}).get('object', {}).get('description')
+                    apostrophe_index = description.find("'s")
+                    if apostrophe_index > 0:
+                        potential_email = description[:apostrophe_index].strip()
+                        if '@' in potential_email and '.' in potential_email:
+                            customer_email = potential_email
+                            print(f"Extracted email from event data description: {customer_email}")
+                            
+                # Also check if it's in the event type description
+                if not customer_email and event.get('type') == 'invoice.payment_succeeded':
+                    # Try to parse from the raw payload
+                    try:
+                        payload_str = request.data.decode('utf-8')
+                        if 'payment for an invoice' in payload_str and '@' in payload_str:
+                            import re
+                            email_pattern = r'([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}).*?payment for an invoice'
+                            matches = re.findall(email_pattern, payload_str)
+                            if matches:
+                                customer_email = matches[0]
+                                print(f"Extracted email from raw payload: {customer_email}")
+                    except Exception as e:
+                        print(f"Error parsing raw payload: {str(e)}")
+                        pass
+                        
+            # Try to get customer details from Stripe API if we have customer ID
+            if not customer_email and customer_id:
+                try:
+                    customer = stripe.Customer.retrieve(customer_id)
+                    if customer and customer.get('email'):
+                        customer_email = customer.get('email')
+                        print(f"Retrieved customer email from Stripe API: {customer_email}")
+                except Exception as e:
+                    print(f"Error retrieving customer from Stripe: {str(e)}")
+                    pass
+                    
+            # Direct handling for the specific format in the webhook we received
+            # Format: "krishnarajkrishna125@gmail.com's payment for an invoice for INR 999.00 succeeded"
+            if not customer_email and event.get('type') == 'invoice.payment_succeeded':
+                try:
+                    # Try to extract from the raw event data
+                    event_data_str = str(event)
+                    if "'s payment for an invoice" in event_data_str:
+                        import re
+                        # Look for pattern like: email's payment for an invoice
+                        pattern = r"([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'s payment for an invoice"
+                        matches = re.findall(pattern, event_data_str)
+                        if matches:
+                            customer_email = matches[0]
+                            print(f"Extracted email from event data string: {customer_email}")
+                except Exception as e:
+                    print(f"Error extracting email from event data string: {str(e)}")
+                    pass
+            
+            # Find the Firebase user by customer email
+            firebase_uid = None
+            if customer_email:
+                # Query Firestore for user with matching email
+                users_ref = db.collection('Users')
+                query = users_ref.where('email', '==', customer_email).limit(1)
+                user_docs = query.get()
+                
+                if len(user_docs) > 0:
+                    firebase_uid = user_docs[0].id
+                    print(f"Found user by email: {firebase_uid}")
+            
+            # If no user found by email, try to find by client_reference_id in metadata
+            if not firebase_uid:
+                # Check if there's metadata with firebase_uid
+                metadata = invoice.get('metadata', {})
+                if metadata and metadata.get('firebase_uid'):
+                    firebase_uid = metadata.get('firebase_uid')
+                    print(f"Found firebase_uid in metadata: {firebase_uid}")
+            
+            # If still no user found, check if there's a client_reference_id
+            if not firebase_uid and invoice.get('client_reference_id'):
+                firebase_uid = invoice.get('client_reference_id')
+                print(f"Using client_reference_id as firebase_uid: {firebase_uid}")
+            
+            # If still no user found, try to extract from lines data
+            if not firebase_uid and invoice.get('lines', {}).get('data'):
+                for item in invoice.get('lines', {}).get('data', []):
+                    if item.get('metadata', {}).get('firebase_uid'):
+                        firebase_uid = item.get('metadata', {}).get('firebase_uid')
+                        print(f"Found firebase_uid in line item metadata: {firebase_uid}")
+                        break
+            
+            if not firebase_uid:
+                print("Could not determine firebase_uid from invoice data")
+                return jsonify({'status': 'success', 'message': 'Event received but no user identified'}), 200
+            
+            # Update user subscription status
+            user_ref = db.collection('Users').document(firebase_uid)
+            user_doc = user_ref.get()
+            
+            if user_doc.exists:
+                now = datetime.now()
+                subscription_end = now + timedelta(days=30)
+                
+                update_data = {
+                    'subscriptionPlan': 'gold',
+                    'trialUsed': True,
+                    'trialEndDate': None,
+                    'trialStartDate': None,
+                    'subscriptionStartDate': now,
+                    'subscriptionEndDate': subscription_end,
+                    'lastUpdated': now,
+                    'stripeCustomerId': customer_id,
+                    'stripeSubscriptionId': subscription_id
+                }
+                
+                print(f"Updating user with data: {update_data}")
+                user_ref.update(update_data)
+                print(f"Successfully updated user {firebase_uid} to gold plan.")
+                
+                return jsonify({'status': 'success', 'message': 'Subscription updated'}), 200
+            else:
+                print(f"User document not found for ID: {firebase_uid}")
+                
+            return jsonify({'status': 'success', 'message': 'Event processed but no user updated'}), 200
+            
+        except Exception as e:
+            print(f"Error processing invoice payment: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'Error processing invoice: {str(e)}'}), 500
+    
+    # Handle other events
     else:
-        print(f"Ignoring non-checkout event type: {event['type']}")
+        print(f"Ignoring event type: {event['type']}")
 
     return jsonify({'status': 'success', 'message': 'Event received'}), 200
 def validate_and_clean_record(record, customer_id):
