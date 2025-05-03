@@ -319,6 +319,54 @@ const enhancedTierStyles = `
   }
 `;
 
+// Add spiral/glossy border styles at the top (append to enhancedTierStyles)
+const spiralPremiumStyles = `
+  .premium-spiral-border {
+    position: relative;
+    border-radius: 1.5rem;
+    padding: 6px;
+    background: conic-gradient(from 0deg, #fffbe6 0%, #ffe082 30%, #ffd700 60%, #fffbe6 100%);
+    box-shadow: 0 8px 32px 0 rgba(189,161,61,0.18), 0 1.5px 8px 0 rgba(255,215,0,0.10);
+    overflow: visible;
+  }
+  .premium-spiral-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 1.5rem;
+    padding: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: repeating-conic-gradient(from 0deg, #fffbe6 0deg 10deg, #ffd700 10deg 20deg, #fffbe6 20deg 30deg);
+    opacity: 0.18;
+  }
+  .premium-inner-card {
+    border-radius: 1.2rem;
+    background: rgba(255,255,255,0.95);
+    box-shadow: 0 2px 12px 0 rgba(189,161,61,0.08);
+    position: relative;
+    z-index: 2;
+    padding: 2.5rem 2rem 2rem 2rem;
+    min-height: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .premium-sparkle {
+    position: absolute;
+    pointer-events: none;
+    animation: sparkle 2.5s infinite alternate;
+    z-index: 3;
+  }
+  .premium-crown {
+    position: absolute;
+    top: 1.2rem;
+    right: 1.5rem;
+    z-index: 4;
+    filter: drop-shadow(0 2px 8px #ffd700cc);
+  }
+`;
+
 const Account = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [predictions, setPredictions] = useState([]);
@@ -782,7 +830,8 @@ const Account = () => {
   // 2. Inject enhanced styles in useEffect (after goldShineStyles)
   useEffect(() => {
     const styleSheet = document.createElement("style");
-    styleSheet.innerText = goldShineStyles + enhancedTierStyles;
+    styleSheet.innerText =
+      goldShineStyles + enhancedTierStyles + spiralPremiumStyles;
     document.head.appendChild(styleSheet);
     return () => {
       document.head.removeChild(styleSheet);
@@ -1432,22 +1481,11 @@ const Account = () => {
     }
     if (userDetails?.subscriptionPlan === "gold") {
       return (
-        <div className="premium-gold-gradient rounded-xl p-8 shadow-lg border flex flex-col justify-between h-full min-h-[420px] relative overflow-hidden">
-          <div className="premium-gold-shine" />
-          <div className="absolute top-0 right-0 p-2 z-10 premium-floating-crown">
-            <svg
-              className="w-12 h-12 text-yellow-400 drop-shadow-lg"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M5 19h14v2H5z" />
-              <path d="M2 7l5 5 5-9 5 9 5-5-3 12H5z" />
-            </svg>
-          </div>
+        <div className="premium-spiral-border rounded-3xl relative flex flex-col items-center justify-center min-h-[420px] mt-15">
           {/* Sparkles */}
           <svg
             className="premium-sparkle"
-            style={{ top: "30px", left: "30px", width: "18px", height: "18px" }}
+            style={{ top: "18px", left: "24px", width: "18px", height: "18px" }}
             viewBox="0 0 20 20"
             fill="gold"
           >
@@ -1458,8 +1496,8 @@ const Account = () => {
           <svg
             className="premium-sparkle"
             style={{
-              bottom: "30px",
-              right: "30px",
+              bottom: "18px",
+              right: "24px",
               width: "14px",
               height: "14px",
             }}
@@ -1468,41 +1506,58 @@ const Account = () => {
           >
             <circle cx="10" cy="10" r="1.5" opacity="0.7" />
           </svg>
-          <div className="flex flex-col items-center mb-6">
-            <span className="inline-flex items-center px-4 py-2 bg-yellow-400/20 rounded-full font-semibold backdrop-blur-sm text-yellow-900 text-lg mb-2 shadow-lg">
-              <svg
-                className="w-5 h-5 mr-2 text-yellow-700"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5-2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              PREMIUM ACTIVE
-            </span>
-            <h3 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-amber-600 mb-2">
-              Premium Features Active
-            </h3>
+          {/* Crown */}
+          <div className="premium-crown">
+            <svg
+              className="w-10 h-10 text-yellow-400"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M5 19h14v2H5z" />
+              <path d="M2 7l5 5 5-9 5 9 5-5-3 12H5z" />
+            </svg>
           </div>
-          <div className="bg-white rounded-xl p-6 shadow-md mb-8">
-            <div className="space-y-4">
-              <div>
-                <p className="text-gray-600">Started:</p>
-                <p className="text-xl font-semibold text-yellow-700">
-                  {formatDisplayDate(userDetails.subscriptionStartDate)}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-600">Next Billing:</p>
-                <p className="text-xl font-semibold text-yellow-700">
-                  {formatDisplayDate(userDetails.subscriptionEndDate)}
-                </p>
-              </div>
-              <div className="pt-4 border-t border-gray-100">
-                <div className="flex items-center justify-center gap-2">
+          <div className="premium-inner-card w-full">
+            {/* Premium badge */}
+            <div className="flex items-center gap-2 mb-4 ">
+              <span className="inline-flex items-center px-4 py-1 bg-yellow-100 text-yellow-800 font-semibold rounded-full shadow text-base">
+                <svg
+                  className="w-5 h-5 mr-2 text-yellow-500"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5-2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                PREMIUM ACTIVE
+              </span>
+            </div>
+            {/* Gradient heading */}
+            <h2 className="text-2xl font-extrabold mb-4 bg-gradient-to-r from-yellow-600 via-yellow-500 to-amber-500 bg-clip-text text-transparent drop-shadow-lg">
+              Premium Features Active
+            </h2>
+            {/* White glassy info box */}
+            <div className="w-full bg-white rounded-xl shadow p-6 mb-6 flex flex-col items-center">
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex justify-between w-full">
+                  <span className="text-gray-600 font-medium">Started:</span>
+                  <span className="text-lg font-bold text-yellow-700">
+                    {formatDisplayDate(userDetails.subscriptionStartDate)}
+                  </span>
+                </div>
+                <div className="flex justify-between w-full">
+                  <span className="text-gray-600 font-medium">
+                    Next Billing:
+                  </span>
+                  <span className="text-lg font-bold text-yellow-700">
+                    {formatDisplayDate(userDetails.subscriptionEndDate)}
+                  </span>
+                </div>
+                <hr className="my-3 border-yellow-100" />
+                <div className="flex items-center gap-2 justify-center w-full">
                   <svg
                     className="w-5 h-5 text-green-500"
                     fill="currentColor"
@@ -1514,16 +1569,16 @@ const Account = () => {
                       clipRule="evenodd"
                     />
                   </svg>
-                  <p className="text-2xl font-bold text-green-600">
+                  <span className="text-lg font-bold text-green-600">
                     Active Subscription
-                  </p>
+                  </span>
                 </div>
               </div>
             </div>
+            <p className="text-center text-sm text-yellow-900">
+              Monthly billing • Premium support included
+            </p>
           </div>
-          <p className="text-center text-sm text-yellow-900">
-            Monthly billing • Premium support included
-          </p>
         </div>
       );
     }
