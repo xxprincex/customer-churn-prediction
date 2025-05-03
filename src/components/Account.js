@@ -266,6 +266,59 @@ const Tooltip = ({ children, content }) => {
   );
 };
 
+// 1. Add new styles for trial and premium cards (add to goldShineStyles)
+const enhancedTierStyles = `
+  .trial-gradient {
+    background: linear-gradient(135deg, #60a5fa 0%, #6366f1 50%, #a21caf 100%);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 30px -5px rgba(99,102,241,0.15);
+    border: 1px solid rgba(99,102,241,0.08);
+  }
+  .trial-shine {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+    animation: shine 2.5s infinite;
+  }
+  .trial-floating-badge {
+    animation: float 2.5s ease-in-out infinite;
+    filter: drop-shadow(0 2px 8px #6366f1cc);
+  }
+  .premium-gold-gradient {
+    background: linear-gradient(135deg, #fffbe6 0%, #ffe082 50%, #ffd700 100%);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 30px -5px rgba(189,161,61,0.25);
+    border: 1px solid rgba(255,215,0,0.12);
+  }
+  .premium-gold-shine {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
+    animation: shine 2.5s infinite;
+  }
+  .premium-floating-crown {
+    animation: float 2.5s ease-in-out infinite;
+    filter: drop-shadow(0 2px 8px #ffd700cc);
+  }
+  .premium-sparkle {
+    position: absolute;
+    pointer-events: none;
+    animation: sparkle 2.5s infinite alternate;
+  }
+  @keyframes sparkle {
+    0% { opacity: 0.7; transform: scale(1) translateY(0); }
+    100% { opacity: 1; transform: scale(1.2) translateY(-8px); }
+  }
+`;
+
 const Account = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [predictions, setPredictions] = useState([]);
@@ -726,12 +779,11 @@ const Account = () => {
     };
   }, [navigate]);
 
+  // 2. Inject enhanced styles in useEffect (after goldShineStyles)
   useEffect(() => {
-    // Add shine styles to document
     const styleSheet = document.createElement("style");
-    styleSheet.innerText = goldShineStyles;
+    styleSheet.innerText = goldShineStyles + enhancedTierStyles;
     document.head.appendChild(styleSheet);
-
     return () => {
       document.head.removeChild(styleSheet);
     };
@@ -1154,6 +1206,340 @@ const Account = () => {
 
   const predictionHistoryRef = useRef(null);
 
+  // 3. Refactor right panel card rendering into a function
+  const renderSubscriptionCard = () => {
+    if (userDetails?.subscriptionPlan === "free") {
+      return (
+        <div className="bg-white/90 rounded-xl p-8 shadow-lg border border-gray-200 flex flex-col justify-between h-full min-h-[420px] relative">
+          <h2 className="text-2xl font-bold text-center mb-4">
+            Upgrade to Gold Plan
+          </h2>
+          <div className="bg-yellow-50 rounded-lg p-3 mb-6">
+            <p className="text-center font-medium text-yellow-800">
+              Special Offer!
+              <br />
+              Try Premium Features Free for 1 Week
+            </p>
+          </div>
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center gap-1">
+              <span className="text-2xl font-bold">₹</span>
+              <span className="text-4xl font-bold">999</span>
+              <span className="text-gray-600 mt-2">/month</span>
+            </div>
+          </div>
+          <div className="space-y-4 mb-8">
+            <div className="flex items-start gap-3">
+              <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
+                {/* icon */}
+                <svg
+                  className="w-5 h-5 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-800">
+                  Unlimited Predictions
+                </h4>
+                <p className="text-sm text-gray-600">
+                  No restrictions on predictions
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
+                <svg
+                  className="w-5 h-5 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z M16 2v4M8 2v4M4 9h16"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-800">
+                  Batch Processing
+                </h4>
+                <p className="text-sm text-gray-600">
+                  Process multiple files at once
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
+                <svg
+                  className="w-5 h-5 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h4 className="font-semibold text-gray-800">
+                  Priority Support
+                </h4>
+                <p className="text-sm text-gray-600">
+                  24/7 premium customer support
+                </p>
+              </div>
+            </div>
+          </div>
+          {!userDetails?.trialUsed ? (
+            <button
+              onClick={startTrial}
+              className="w-full bg-[#F7B614] hover:bg-[#e5a912] text-white rounded-full py-3 px-8 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mb-4"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+              Start 1-Week Free Trial
+            </button>
+          ) : (
+            <button
+              onClick={handlePremiumUpgrade}
+              className="w-full bg-[#F7B614] hover:bg-[#e5a912] text-white rounded-full py-3 px-8 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mb-4"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                />
+              </svg>
+              Upgrade to Premium
+            </button>
+          )}
+          <p className="text-center text-sm text-gray-500">
+            No credit card required.
+          </p>
+        </div>
+      );
+    }
+    if (userDetails?.subscriptionPlan === "trial") {
+      const daysLeft = (() => {
+        const end = getDateObj(userDetails.trialEndDate);
+        if (!end) return 0;
+        const diff = Math.ceil((end - new Date()) / (1000 * 60 * 60 * 24));
+        return diff > 0 ? diff : 0;
+      })();
+      return (
+        <div className="bg-white/90 rounded-xl p-8 shadow-lg border border-gray-200 flex flex-col justify-between h-full min-h-[420px] relative items-center text-center">
+          {/* Yellow badge */}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2">
+            <span className="inline-flex items-center px-4 py-1 bg-yellow-100 text-yellow-800 font-semibold rounded-full shadow text-base">
+              <svg
+                className="w-5 h-5 mr-2 text-yellow-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5-2V4a2 2 0 00-2-2H5z"
+                />
+              </svg>
+              Trial Active
+            </span>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mt-12 mb-4">
+            Trial Period
+          </h2>
+          {/* Days left */}
+          <div className="mb-2">
+            <span className="text-4xl font-extrabold text-gray-900">
+              {daysLeft} days remaining
+            </span>
+          </div>
+          {/* Dates row */}
+          <div className="flex justify-center gap-8 mb-6">
+            <div>
+              <div className="text-gray-500 text-xs">Started</div>
+              <div className="text-base font-semibold text-gray-800">
+                {formatDisplayDate(userDetails.trialStartDate)}
+              </div>
+            </div>
+            <div>
+              <div className="text-gray-500 text-xs">Ends</div>
+              <div className="text-base font-semibold text-gray-800">
+                {formatDisplayDate(userDetails.trialEndDate)}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={handlePremiumUpgrade}
+            className="w-full bg-yellow-400 hover:bg-yellow-500 text-white rounded-full py-3 px-8 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mt-2"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+              />
+            </svg>
+            Upgrade to Premium
+          </button>
+          <p className="text-center text-sm text-gray-500">
+            Enjoy all premium features during your trial.
+          </p>
+        </div>
+      );
+    }
+    if (userDetails?.subscriptionPlan === "gold") {
+      return (
+        <div className="premium-gold-gradient rounded-xl p-8 shadow-lg border flex flex-col justify-between h-full min-h-[420px] relative overflow-hidden">
+          <div className="premium-gold-shine" />
+          <div className="absolute top-0 right-0 p-2 z-10 premium-floating-crown">
+            <svg
+              className="w-12 h-12 text-yellow-400 drop-shadow-lg"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path d="M5 19h14v2H5z" />
+              <path d="M2 7l5 5 5-9 5 9 5-5-3 12H5z" />
+            </svg>
+          </div>
+          {/* Sparkles */}
+          <svg
+            className="premium-sparkle"
+            style={{ top: "30px", left: "30px", width: "18px", height: "18px" }}
+            viewBox="0 0 20 20"
+            fill="gold"
+          >
+            <circle cx="10" cy="10" r="2" opacity="0.7" />
+            <circle cx="16" cy="4" r="1" opacity="0.5" />
+            <circle cx="4" cy="16" r="1.2" opacity="0.5" />
+          </svg>
+          <svg
+            className="premium-sparkle"
+            style={{
+              bottom: "30px",
+              right: "30px",
+              width: "14px",
+              height: "14px",
+            }}
+            viewBox="0 0 20 20"
+            fill="#ffe082"
+          >
+            <circle cx="10" cy="10" r="1.5" opacity="0.7" />
+          </svg>
+          <div className="flex flex-col items-center mb-6">
+            <span className="inline-flex items-center px-4 py-2 bg-yellow-400/20 rounded-full font-semibold backdrop-blur-sm text-yellow-900 text-lg mb-2 shadow-lg">
+              <svg
+                className="w-5 h-5 mr-2 text-yellow-700"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5-2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              PREMIUM ACTIVE
+            </span>
+            <h3 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-amber-600 mb-2">
+              Premium Features Active
+            </h3>
+          </div>
+          <div className="bg-white rounded-xl p-6 shadow-md mb-8">
+            <div className="space-y-4">
+              <div>
+                <p className="text-gray-600">Started:</p>
+                <p className="text-xl font-semibold text-yellow-700">
+                  {formatDisplayDate(userDetails.subscriptionStartDate)}
+                </p>
+              </div>
+              <div>
+                <p className="text-gray-600">Next Billing:</p>
+                <p className="text-xl font-semibold text-yellow-700">
+                  {formatDisplayDate(userDetails.subscriptionEndDate)}
+                </p>
+              </div>
+              <div className="pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-center gap-2">
+                  <svg
+                    className="w-5 h-5 text-green-500"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <p className="text-2xl font-bold text-green-600">
+                    Active Subscription
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p className="text-center text-sm text-yellow-900">
+            Monthly billing • Premium support included
+          </p>
+        </div>
+      );
+    }
+    // Fallback for unknown plan
+    return (
+      <div className="bg-red-100 text-red-700 p-6 rounded-xl text-center mt-8">
+        <h3 className="text-2xl font-bold mb-2">Unknown Plan</h3>
+        <p className="mb-2">
+          Your subscription plan is not recognized:{" "}
+          <b>{String(userDetails?.subscriptionPlan)}</b>
+        </p>
+        <p>Please contact support or try logging out and back in.</p>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="w-full pt-[140px] md:pt-[160px] pb-12 px-4">
@@ -1436,352 +1822,8 @@ const Account = () => {
                   </div>
 
                   {/* Right Panel - Plan Info */}
-                  <div className="lg:w-1/3 p-8 lg:p-12 bg-gradient-to-br from-gray-50/50 via-white/50 to-gray-100/50 backdrop-blur-md border-l border-white/20">
-                    {userDetails?.subscriptionPlan === "free" && (
-                      <div className="bg-white/90 rounded-xl p-8 shadow-lg border border-gray-200">
-                        <h2 className="text-2xl font-bold text-center mb-4">
-                          Upgrade to Gold Plan
-                        </h2>
-
-                        <div className="bg-yellow-50 rounded-lg p-3 mb-6">
-                          <p className="text-center font-medium text-yellow-800">
-                            Special Offer!
-                            <br />
-                            Try Premium Features Free for 1 Week
-                          </p>
-                        </div>
-
-                        <div className="text-center mb-8">
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-2xl font-bold">₹</span>
-                            <span className="text-4xl font-bold">999</span>
-                            <span className="text-gray-600 mt-2">/month</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4 mb-8">
-                          <div className="flex items-start gap-3">
-                            <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
-                              <svg
-                                className="w-5 h-5 text-yellow-600"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                                />
-                              </svg>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-800">
-                                Unlimited Predictions
-                              </h4>
-                              <p className="text-sm text-gray-600">
-                                No restrictions on predictions
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-3">
-                            <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
-                              <svg
-                                className="w-5 h-5 text-yellow-600"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7z M16 2v4M8 2v4M4 9h16"
-                                />
-                              </svg>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-800">
-                                Batch Processing
-                              </h4>
-                              <p className="text-sm text-gray-600">
-                                Process multiple files at once
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-start gap-3">
-                            <div className="bg-yellow-100 p-2 rounded-full mt-0.5">
-                              <svg
-                                className="w-5 h-5 text-yellow-600"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                              </svg>
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-800">
-                                Priority Support
-                              </h4>
-                              <p className="text-sm text-gray-600">
-                                24/7 premium customer support
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {!userDetails?.trialUsed ? (
-                          <button
-                            onClick={startTrial}
-                            className="w-full bg-[#F7B614] hover:bg-[#e5a912] text-white rounded-full py-3 px-8 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mb-4"
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M13 10V3L4 14h7v7l9-11h-7z"
-                              />
-                            </svg>
-                            Start 1-Week Free Trial
-                          </button>
-                        ) : (
-                          <button
-                            onClick={handlePremiumUpgrade}
-                            className="w-full bg-[#F7B614] hover:bg-[#e5a912] text-white rounded-full py-3 px-8 font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mb-4"
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                              />
-                            </svg>
-                            Upgrade to Premium
-                          </button>
-                        )}
-
-                        <p className="text-center text-sm text-gray-500">
-                          No credit card required.
-                        </p>
-                      </div>
-                    )}
-                    {userDetails?.subscriptionPlan === "trial" && (
-                      <>
-                        <div className="space-y-8 mt-12">
-                          <div className="text-center">
-                            <div className="inline-flex items-center px-4 py-2 bg-yellow-400/20 rounded-full font-semibold backdrop-blur-sm">
-                              <svg
-                                className="w-5 h-5 mr-2"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5-2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                              TRIAL ACTIVE
-                            </div>
-
-                            <h3 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-amber-600 mb-6">
-                              Trial Period
-                            </h3>
-
-                            <div className="bg-white rounded-xl p-6 shadow-md mb-8">
-                              <div className="space-y-4">
-                                <div>
-                                  <p className="text-gray-600">Started:</p>
-                                  <p className="text-xl font-semibold text-yellow-700">
-                                    {formatDisplayDate(
-                                      userDetails.trialStartDate
-                                    )}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-600">Ends:</p>
-                                  <p className="text-xl font-semibold text-yellow-700">
-                                    {formatDisplayDate(
-                                      userDetails.trialEndDate
-                                    )}
-                                  </p>
-                                </div>
-                                <div className="pt-4 border-t border-gray-100">
-                                  <p className="text-2xl font-bold text-yellow-800">
-                                    {(() => {
-                                      const end = getDateObj(
-                                        userDetails.trialEndDate
-                                      );
-                                      if (!end) return "N/A";
-                                      const diff = Math.ceil(
-                                        (end - new Date()) /
-                                          (1000 * 60 * 60 * 24)
-                                      );
-                                      return diff > 0 ? diff : 0;
-                                    })()}{" "}
-                                    days remaining
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-
-                            {Math.ceil(
-                              (getDateObj(userDetails.trialEndDate) -
-                                new Date()) /
-                                (1000 * 60 * 60 * 24)
-                            ) <= 2 && (
-                              <div className="bg-red-50 border border-red-100 rounded-xl p-4 mb-8">
-                                <div className="flex items-center gap-3">
-                                  <svg
-                                    className="w-6 h-6 text-red-500"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 002 0V6a1 1 0 00-1-1z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                  <p className="text-red-800 font-medium">
-                                    Your trial is ending soon! Upgrade now to
-                                    keep your premium features.
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="space-y-3">
-                            <button
-                              onClick={handlePremiumUpgrade}
-                              className={`${buttonCommonClasses} bg-gradient-to-r from-yellow-400 to-yellow-600 text-white hover:from-yellow-500 hover:to-yellow-700`}
-                            >
-                              <svg
-                                className="w-5 h-5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth="2"
-                                  d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
-                                />
-                              </svg>
-                              Upgrade to Premium
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                    {userDetails?.subscriptionPlan === "gold" && (
-                      <>
-                        <div className="space-y-8">
-                          <div className="text-center">
-                            <div className="inline-flex items-center px-4 py-2 bg-yellow-400/20 rounded-full font-semibold backdrop-blur-sm">
-                              <svg
-                                className="w-5 h-5 mr-2"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5-2V4a2 2 0 00-2-2H5zm4.707 3.707a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L8.414 9H10a3 3 0 013 3v1a1 1 0 102 0v-1a5 5 0 00-5-5H8.414l1.293-1.293z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                              PREMIUM ACTIVE
-                            </div>
-
-                            <h3 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-amber-600 mb-6">
-                              Premium Features Active
-                            </h3>
-
-                            <div className="bg-white rounded-xl p-6 shadow-md mb-8">
-                              <div className="space-y-4">
-                                <div>
-                                  <p className="text-gray-600">Started:</p>
-                                  <p className="text-xl font-semibold text-yellow-700">
-                                    {formatDisplayDate(
-                                      userDetails.subscriptionStartDate
-                                    )}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-gray-600">Next Billing:</p>
-                                  <p className="text-xl font-semibold text-yellow-700">
-                                    {formatDisplayDate(
-                                      userDetails.subscriptionEndDate
-                                    )}
-                                  </p>
-                                </div>
-                                <div className="pt-4 border-t border-gray-100">
-                                  <div className="flex items-center justify-center gap-2">
-                                    <svg
-                                      className="w-5 h-5 text-green-500"
-                                      fill="currentColor"
-                                      viewBox="0 0 20 20"
-                                    >
-                                      <path
-                                        fillRule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                        clipRule="evenodd"
-                                      />
-                                    </svg>
-                                    <p className="text-2xl font-bold text-green-600">
-                                      Active Subscription
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                            <p className="text-center text-sm text-gray-500">
-                              Monthly billing • Premium support included
-                            </p>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                    {/* Fallback poster for unknown or missing subscriptionPlan */}
-                    {!["free", "trial", "gold"].includes(
-                      userDetails?.subscriptionPlan
-                    ) && (
-                      <div className="bg-red-100 text-red-700 p-6 rounded-xl text-center mt-8">
-                        <h3 className="text-2xl font-bold mb-2">
-                          Unknown Plan
-                        </h3>
-                        <p className="mb-2">
-                          Your subscription plan is not recognized:{" "}
-                          <b>{String(userDetails?.subscriptionPlan)}</b>
-                        </p>
-                        <p>
-                          Please contact support or try logging out and back in.
-                        </p>
-                      </div>
-                    )}
+                  <div className="lg:w-1/3 p-8 lg:p-12 bg-gradient-to-br from-gray-50/50 via-white/50 to-gray-100/50 backdrop-blur-md border-l border-white/20 flex flex-col justify-between">
+                    {renderSubscriptionCard()}
                   </div>
                 </div>
               </div>
