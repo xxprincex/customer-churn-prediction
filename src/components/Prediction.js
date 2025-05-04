@@ -278,18 +278,18 @@ const Prediction = () => {
 
       // Step 1: Process and validate form data
       let submissionData = { ...formData };
-      if (
-        !submissionData.CustomerID ||
-        submissionData.CustomerID.trim() === ""
-      ) {
-        try {
-          submissionData.CustomerID = await generateCustomerId();
-          setFormData(submissionData);
-        } catch (idError) {
-          console.error("Error generating customer ID:", idError);
-          toast.error("Error generating customer ID. Using fallback ID.");
-          submissionData.CustomerID = `C${Date.now().toString().slice(-5)}`;
-        }
+
+      // Always generate a new customer ID for each prediction
+      try {
+        submissionData.CustomerID = await generateCustomerId();
+        setFormData((prev) => ({
+          ...prev,
+          CustomerID: submissionData.CustomerID,
+        }));
+      } catch (idError) {
+        console.error("Error generating customer ID:", idError);
+        toast.error("Error generating customer ID. Using fallback ID.");
+        submissionData.CustomerID = `C${Date.now().toString().slice(-5)}`;
       }
 
       // Step 2: Data preprocessing and validation
@@ -452,6 +452,21 @@ const Prediction = () => {
 
         setDailyPredictions(newCount);
         setLastPredictionDate(today);
+
+        // Save the prediction to Firebase
+        const predictionsRef = collection(db, "Users", user.uid, "predictions");
+        await addDoc(predictionsRef, {
+          timestamp: serverTimestamp(),
+          formData: submissionData,
+          prediction: formattedPredictionResult.prediction,
+          churn_probability: formattedPredictionResult.churn_probability,
+          stay_probability: formattedPredictionResult.stay_probability,
+          prediction_label: formattedPredictionResult.prediction_label,
+          risk_factors: formattedPredictionResult.risk_factors,
+          confidence_score: formattedPredictionResult.confidence_score,
+          customerID: submissionData.CustomerID,
+          date: new Date().toISOString(),
+        });
 
         if (newCount >= 15) {
           toast.info(
