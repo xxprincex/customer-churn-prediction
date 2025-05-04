@@ -9,6 +9,7 @@ import {
   orderBy,
   updateDoc,
   writeBatch,
+  deleteDoc,
 } from "firebase/firestore";
 import {
   signOut,
@@ -367,6 +368,8 @@ const spiralPremiumStyles = `
   }
 `;
 
+const PREDICTION_LIMIT_FREE = 20;
+
 const Account = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [predictions, setPredictions] = useState([]);
@@ -388,6 +391,7 @@ const Account = () => {
   const [reAuthError, setReAuthError] = useState("");
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [showBatchHistory, setShowBatchHistory] = useState(false);
+  const [todayPredictionCount, setTodayPredictionCount] = useState(0);
 
   // Add this after other state declarations
   const [batchPredictions, setBatchPredictions] = useState([]);
@@ -922,19 +926,16 @@ const Account = () => {
       setIsProcessing(true);
       setReAuthError("");
       const user = auth.currentUser;
-
       if (!user) {
         toast.error("No user found to delete");
         return;
       }
-
       if (!password.trim()) {
         setReAuthError("Please enter your password to confirm deletion");
         toast.error("Please enter your password to confirm deletion");
         setIsProcessing(false);
         return;
       }
-
       try {
         // Try to re-authenticate user before deletion
         const credential = EmailAuthProvider.credential(user.email, password);
@@ -946,27 +947,30 @@ const Account = () => {
         setIsProcessing(false);
         return;
       }
-
-      // Create a batch for Firestore operations
-      const batch = writeBatch(db);
-
-      // Delete user's predictions
-      const predictionsRef = collection(db, "Users", user.uid, "predictions");
-      const predictionsSnapshot = await getDocs(predictionsRef);
-      predictionsSnapshot.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-      });
-
-      // Delete user document
+      // Delete all predictions and batchPredictions
       const userRef = doc(db, "Users", user.uid);
-      batch.delete(userRef);
-
-      // Commit the batch
-      await batch.commit();
-
+      const predictionsRef = collection(userRef, "predictions");
+      const batchPredictionsRef = collection(userRef, "batchPredictions");
+      // Delete predictions
+      const predictionsSnapshot = await getDocs(predictionsRef);
+      for (const docSnap of predictionsSnapshot.docs) {
+        await deleteDoc(docSnap.ref);
+      }
+      // Delete batchPredictions and their subcollections (chunks)
+      const batchPredictionsSnapshot = await getDocs(batchPredictionsRef);
+      for (const batchDoc of batchPredictionsSnapshot.docs) {
+        // Delete chunks subcollection if exists
+        const chunksRef = collection(batchDoc.ref, "chunks");
+        const chunksSnapshot = await getDocs(chunksRef);
+        for (const chunkDoc of chunksSnapshot.docs) {
+          await deleteDoc(chunkDoc.ref);
+        }
+        await deleteDoc(batchDoc.ref);
+      }
+      // Delete user document
+      await deleteDoc(userRef);
       // Delete the user authentication account
       await deleteUser(user);
-
       toast.success("Account deleted successfully");
       navigate("/"); // Navigate to home page
     } catch (error) {
@@ -1594,6 +1598,36 @@ const Account = () => {
       </div>
     );
   };
+
+  // Fetch today's prediction count for free users
+  useEffect(() => {
+    const fetchTodayPredictionCount = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser || userDetails?.subscriptionPlan !== "free") return;
+      const predictionsRef = collection(
+        db,
+        "Users",
+        currentUser.uid,
+        "predictions"
+      );
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const q = query(predictionsRef, orderBy("timestamp", "desc"));
+      const querySnapshot = await getDocs(q);
+      let count = 0;
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.timestamp && data.timestamp.toDate) {
+          const predDate = data.timestamp.toDate();
+          if (predDate >= today) count++;
+        }
+      });
+      setTodayPredictionCount(count);
+    };
+    if (userDetails?.subscriptionPlan === "free") {
+      fetchTodayPredictionCount();
+    }
+  }, [userDetails?.subscriptionPlan]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
