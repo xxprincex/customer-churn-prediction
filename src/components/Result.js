@@ -14,7 +14,7 @@ import { toast } from "react-toastify";
 const Result = ({ prediction, formData, error }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  const [userType, setUserType] = useState(null);
+  const [userType, setUserType] = useState("free");
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
@@ -129,9 +129,9 @@ const Result = ({ prediction, formData, error }) => {
     );
   }
 
-  if (!prediction) return null;
+  if (!prediction || !formData) return null;
 
-  // Step 1: Extract prediction values
+  // Extract prediction values
   const churnProbability = prediction.churn_probability
     ? (prediction.churn_probability * 100).toFixed(1)
     : 0;
@@ -142,87 +142,7 @@ const Result = ({ prediction, formData, error }) => {
   const riskFactors = prediction.risk_factors || [];
   const confidenceScore = prediction.confidence_score || 0;
 
-  // Step 2: Determine risk level and color scheme
-  const getRiskLevel = (probability) => {
-    const prob = parseFloat(probability);
-    if (prob > 70) return { level: "High", color: "red" };
-    if (prob > 30) return { level: "Medium", color: "yellow" };
-    return { level: "Low", color: "green" };
-  };
-
-  const riskInfo = getRiskLevel(churnProbability);
-
-  // Step 3: Generate action items based on risk level and factors
-  const getActionItems = () => {
-    if (willChurn) {
-      const items = [
-        {
-          icon: "🚨",
-          text: "Immediate intervention required",
-          priority: "high",
-        },
-      ];
-
-      // Add specific actions based on risk factors
-      if (riskFactors.includes("Low satisfaction score")) {
-        items.push({
-          icon: "📞",
-          text: "Schedule urgent satisfaction review call",
-          priority: "high",
-        });
-      }
-
-      if (parseInt(formData.OrderCount) <= 2) {
-        items.push({
-          icon: "🎁",
-          text: `Special first-time customer retention offer`,
-          priority: "high",
-        });
-      }
-
-      items.push({
-        icon: "💰",
-        text: `Prepare retention offer with ${Math.round(formData.CashbackAmount * 2)} bonus points`,
-        priority: "medium",
-      });
-
-      if (formData.CouponUsed === "0") {
-        items.push({
-          icon: "🏷️",
-          text: "Introduce personalized coupon program",
-          priority: "medium",
-        });
-      }
-
-      return items;
-    }
-
-    // Actions for low-risk customers
-    return [
-      {
-        icon: "🌟",
-        text: "Maintain service quality",
-        priority: "medium",
-      },
-      {
-        icon: "📈",
-        text: "Monitor satisfaction trends",
-        priority: "low",
-      },
-      {
-        icon: "🤝",
-        text: "Consider loyalty program enrollment",
-        priority: "medium",
-      },
-      {
-        icon: "💡",
-        text: "Explore upsell opportunities",
-        priority: "low",
-      },
-    ];
-  };
-
-  // Get behavioral analysis based on customer data
+  // Get behavioral analysis based on the form data used for prediction
   const getBehavioralAnalysis = () => {
     const analysis = [];
 
@@ -340,7 +260,8 @@ const Result = ({ prediction, formData, error }) => {
     return analysis.join("");
   };
 
-  const getIndicators = (formData) => {
+  // Get indicators based on the form data used for prediction
+  const getIndicators = () => {
     const positiveIndicators = [];
     const negativeIndicators = [];
 
@@ -392,11 +313,11 @@ const Result = ({ prediction, formData, error }) => {
     return { positiveIndicators, negativeIndicators };
   };
 
-  const getRecommendations = (prediction, formData) => {
+  // Get recommendations based on the prediction and form data used
+  const getRecommendations = () => {
     const recommendations = [];
 
     if (prediction.prediction === 1) {
-      // High risk recommendations
       recommendations.push("Immediate customer outreach required");
       if (formData.Complain === "1") {
         recommendations.push("Priority complaint resolution");
@@ -404,7 +325,6 @@ const Result = ({ prediction, formData, error }) => {
       recommendations.push("Offer personalized retention promotions");
       recommendations.push("Conduct satisfaction survey");
     } else {
-      // Low risk recommendations
       recommendations.push("Maintain service quality");
       recommendations.push("Consider loyalty program enrollment");
       if (parseInt(formData.HourSpendOnApp) < 2) {
@@ -416,8 +336,88 @@ const Result = ({ prediction, formData, error }) => {
     return recommendations;
   };
 
-  const { positiveIndicators, negativeIndicators } = getIndicators(formData);
-  const recommendations = getRecommendations(prediction, formData);
+  const { positiveIndicators, negativeIndicators } = getIndicators();
+  const recommendations = getRecommendations();
+
+  // Step 2: Determine risk level and color scheme
+  const getRiskLevel = (probability) => {
+    const prob = parseFloat(probability);
+    if (prob > 70) return { level: "High", color: "red" };
+    if (prob > 30) return { level: "Medium", color: "yellow" };
+    return { level: "Low", color: "green" };
+  };
+
+  const riskInfo = getRiskLevel(churnProbability);
+
+  // Step 3: Generate action items based on risk level and factors
+  const getActionItems = () => {
+    if (willChurn) {
+      const items = [
+        {
+          icon: "🚨",
+          text: "Immediate intervention required",
+          priority: "high",
+        },
+      ];
+
+      // Add specific actions based on risk factors
+      if (riskFactors.includes("Low satisfaction score")) {
+        items.push({
+          icon: "📞",
+          text: "Schedule urgent satisfaction review call",
+          priority: "high",
+        });
+      }
+
+      if (parseInt(formData.OrderCount) <= 2) {
+        items.push({
+          icon: "🎁",
+          text: `Special first-time customer retention offer`,
+          priority: "high",
+        });
+      }
+
+      items.push({
+        icon: "💰",
+        text: `Prepare retention offer with ${Math.round(formData.CashbackAmount * 2)} bonus points`,
+        priority: "medium",
+      });
+
+      if (formData.CouponUsed === "0") {
+        items.push({
+          icon: "🏷️",
+          text: "Introduce personalized coupon program",
+          priority: "medium",
+        });
+      }
+
+      return items;
+    }
+
+    // Actions for low-risk customers
+    return [
+      {
+        icon: "🌟",
+        text: "Maintain service quality",
+        priority: "medium",
+      },
+      {
+        icon: "📈",
+        text: "Monitor satisfaction trends",
+        priority: "low",
+      },
+      {
+        icon: "🤝",
+        text: "Consider loyalty program enrollment",
+        priority: "medium",
+      },
+      {
+        icon: "💡",
+        text: "Explore upsell opportunities",
+        priority: "low",
+      },
+    ];
+  };
 
   return (
     <div className="mt-8 p-6 bg-white rounded-lg shadow-lg">

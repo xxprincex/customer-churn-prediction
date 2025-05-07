@@ -143,6 +143,7 @@ const Prediction = () => {
   });
 
   const [prediction, setPrediction] = useState(null);
+  const [predictionFormData, setPredictionFormData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [formErrors, setFormErrors] = useState({});
@@ -291,6 +292,9 @@ const Prediction = () => {
         toast.error("Error generating customer ID. Using fallback ID.");
         submissionData.CustomerID = `C${Date.now().toString().slice(-5)}`;
       }
+
+      // Store the form data used for this prediction
+      setPredictionFormData(submissionData);
 
       // Step 2: Data preprocessing and validation
       const processedData = {
@@ -1126,7 +1130,11 @@ const Prediction = () => {
 
           {/* Result Component */}
           <div ref={resultRef}>
-            <Result prediction={prediction} formData={formData} error={error} />
+            <Result
+              prediction={prediction}
+              formData={predictionFormData}
+              error={error}
+            />
           </div>
         </div>
       )}
