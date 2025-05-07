@@ -144,6 +144,7 @@ const Prediction = () => {
 
   const [prediction, setPrediction] = useState(null);
   const [predictionFormData, setPredictionFormData] = useState(null);
+  const [predictionKey, setPredictionKey] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [formErrors, setFormErrors] = useState({});
@@ -440,6 +441,7 @@ const Prediction = () => {
       };
 
       setPrediction(formattedPredictionResult);
+      setPredictionKey((prev) => prev + 1);
 
       // Update daily prediction count for free users
       if (!hasPremiumAccess) {
@@ -470,6 +472,16 @@ const Prediction = () => {
           confidence_score: formattedPredictionResult.confidence_score,
           customerID: submissionData.CustomerID,
           date: new Date().toISOString(),
+        });
+
+        // Show auto-save toast for free users
+        toast.success("Prediction auto-saved to history!", {
+          position: "top-right",
+          autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
         });
 
         if (newCount >= 15) {
@@ -1134,6 +1146,7 @@ const Prediction = () => {
               prediction={prediction}
               formData={predictionFormData}
               error={error}
+              predictionKey={predictionKey}
             />
           </div>
         </div>

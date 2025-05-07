@@ -11,12 +11,17 @@ import {
 } from "firebase/firestore";
 import { toast } from "react-toastify";
 
-const Result = ({ prediction, formData, error }) => {
+const Result = ({ prediction, formData, error, predictionKey }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [userType, setUserType] = useState("free");
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+  // Reset isSaved on every new prediction
+  useEffect(() => {
+    setIsSaved(false);
+  }, [predictionKey]);
 
   useEffect(() => {
     const checkUserType = async () => {
@@ -33,7 +38,7 @@ const Result = ({ prediction, formData, error }) => {
           const shouldAutoSave =
             userData.subscriptionPlan === "gold"
               ? (userData.autoSaveEnabled ?? false)
-              : true; // Free and trial users always auto-save
+              : false; // Only gold users can have auto-save
 
           setAutoSaveEnabled(shouldAutoSave);
           setIsInitialLoad(false);
@@ -47,29 +52,21 @@ const Result = ({ prediction, formData, error }) => {
     checkUserType();
   }, []);
 
+  // Auto-save for all user types except free (handled in Prediction.js)
   useEffect(() => {
-    // Skip auto-save during initial load to prevent unwanted saves
     if (isInitialLoad) return;
-
-    // Only auto save if:
-    // 1. We have a prediction to save
-    // 2. It hasn't been saved yet
-    // 3. Either:
-    //    - User is not gold (always auto-save)
-    //    - User is gold AND has auto-save enabled
-    const shouldAutoSave =
-      prediction &&
-      !isSaved &&
-      ((userType !== "gold" && userType !== "") || autoSaveEnabled);
-
-    if (shouldAutoSave) {
-      handleSaveResult(true); // Pass true to indicate this is an auto-save
+    if (!prediction || !formData || isSaved) return;
+    if (
+      userType === "trial" ||
+      userType === "gold" ||
+      (userType === "gold" && autoSaveEnabled)
+    ) {
+      handleSaveResult(true);
     }
-  }, [prediction, isSaved, userType, autoSaveEnabled, isInitialLoad]);
+  }, [prediction, isSaved, userType, autoSaveEnabled, isInitialLoad, formData]);
 
   const handleSaveResult = async (isAutoSave = false) => {
     if (isSaved) return;
-
     setIsSaving(true);
     try {
       const user = auth.currentUser;
@@ -77,7 +74,6 @@ const Result = ({ prediction, formData, error }) => {
         toast.error("You must be logged in to save predictions");
         return;
       }
-
       const predictionsRef = collection(db, "Users", user.uid, "predictions");
       const predictionDoc = {
         timestamp: serverTimestamp(),
@@ -92,11 +88,9 @@ const Result = ({ prediction, formData, error }) => {
         date: new Date().toISOString(),
         autoSaved: isAutoSave,
       };
-
       await addDoc(predictionsRef, predictionDoc);
       setIsSaved(true);
-
-      // Show toast for both auto-save and manual save
+      // Always show toast for both auto-save and manual save
       toast.success(
         isAutoSave
           ? "Prediction auto-saved to history!"
@@ -430,8 +424,8 @@ const Result = ({ prediction, formData, error }) => {
             <span className="text-sm font-bold">{formData.CustomerID}</span>
           </div>
 
-          {/* Save Button */}
-          {userType !== "free" && !autoSaveEnabled && !isSaved && (
+          {/* Save Button - Only show for gold users who haven't enabled auto-save */}
+          {userType === "gold" && !autoSaveEnabled && !isSaved && (
             <button
               onClick={() => handleSaveResult(false)}
               disabled={isSaving}
