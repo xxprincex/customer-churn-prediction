@@ -1844,10 +1844,14 @@ const Account = () => {
                       <div className="flex items-center gap-4">
                         {hasPremiumAccess() && (
                           <>
-                            <Tooltip content="Choose to automatically save all prediction results">
+                            <Tooltip content="Choose this to auto-save every prediction result">
                               <button
                                 onClick={handleAutoSaveToggle}
-                                className={`${autoSaveEnabled ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-700"} text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105`}
+                                className={`${
+                                  autoSaveEnabled
+                                    ? "bg-green-600 hover:bg-green-700"
+                                    : "bg-red-600 hover:bg-red-700"
+                                } text-white rounded-full py-3 px-8 font-medium transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2 transform hover:scale-105`}
                               >
                                 <svg
                                   className="w-5 h-5"
