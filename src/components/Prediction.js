@@ -281,17 +281,22 @@ const Prediction = () => {
       // Step 1: Process and validate form data
       let submissionData = { ...formData };
 
-      // Always generate a new customer ID for each prediction
-      try {
-        submissionData.CustomerID = await generateCustomerId();
-        setFormData((prev) => ({
-          ...prev,
-          CustomerID: submissionData.CustomerID,
-        }));
-      } catch (idError) {
-        console.error("Error generating customer ID:", idError);
-        toast.error("Error generating customer ID. Using fallback ID.");
-        submissionData.CustomerID = `C${Date.now().toString().slice(-5)}`;
+      // Only generate a new customer ID if none is provided
+      if (
+        !submissionData.CustomerID ||
+        submissionData.CustomerID.trim() === ""
+      ) {
+        try {
+          submissionData.CustomerID = await generateCustomerId();
+          setFormData((prev) => ({
+            ...prev,
+            CustomerID: submissionData.CustomerID,
+          }));
+        } catch (idError) {
+          console.error("Error generating customer ID:", idError);
+          toast.error("Error generating customer ID. Using fallback ID.");
+          submissionData.CustomerID = `C${Date.now().toString().slice(-5)}`;
+        }
       }
 
       // Store the form data used for this prediction

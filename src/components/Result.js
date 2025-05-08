@@ -34,11 +34,12 @@ const Result = ({ prediction, formData, error, predictionKey }) => {
           const userData = userDoc.data();
           setUserType((userData.subscriptionPlan || "free").toLowerCase());
 
-          // Only enable auto-save for gold subscribers if they have turned it on
+          // Auto-save is enabled by default for all users
+          // Only gold users can disable it
           const shouldAutoSave =
             userData.subscriptionPlan === "gold"
-              ? (userData.autoSaveEnabled ?? false)
-              : false; // Only gold users can have auto-save
+              ? (userData.autoSaveEnabled ?? true) // Default to true for gold users
+              : true; // Always true for non-gold users
 
           setAutoSaveEnabled(shouldAutoSave);
           setIsInitialLoad(false);
@@ -52,18 +53,14 @@ const Result = ({ prediction, formData, error, predictionKey }) => {
     checkUserType();
   }, []);
 
-  // Auto-save for all user types except free (handled in Prediction.js)
+  // Auto-save for all users unless explicitly disabled by gold users
   useEffect(() => {
     if (isInitialLoad) return;
     if (!prediction || !formData || isSaved) return;
-    if (
-      userType === "trial" ||
-      userType === "gold" ||
-      (userType === "gold" && autoSaveEnabled)
-    ) {
+    if (autoSaveEnabled) {
       handleSaveResult(true);
     }
-  }, [prediction, isSaved, userType, autoSaveEnabled, isInitialLoad, formData]);
+  }, [prediction, isSaved, autoSaveEnabled, isInitialLoad, formData]);
 
   const handleSaveResult = async (isAutoSave = false) => {
     if (isSaved) return;
