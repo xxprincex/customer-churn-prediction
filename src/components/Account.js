@@ -1629,6 +1629,103 @@ const Account = () => {
     }
   }, [userDetails?.subscriptionPlan]);
 
+  // Add this useEffect to handle plan expiration and advance notifications
+  useEffect(() => {
+    if (!userDetails) return;
+    const now = new Date();
+    let updated = false;
+
+    // If no plan, set to free
+    if (!userDetails.subscriptionPlan) {
+      setUserDetails((prev) => ({ ...prev, subscriptionPlan: "free" }));
+      updated = true;
+    }
+
+    // Trial plan expiration and advance notification
+    if (userDetails.subscriptionPlan === "trial" && userDetails.trialEndDate) {
+      const trialEnd = getDateObj(userDetails.trialEndDate);
+      const daysLeft = Math.ceil((trialEnd - now) / (1000 * 60 * 60 * 24));
+      if (daysLeft > 0 && daysLeft <= 2) {
+        toast.info(
+          `Your trial ends on ${trialEnd.toLocaleDateString("en-IN")}. Upgrade to Gold to keep premium features!`,
+          { autoClose: 6000 }
+        );
+      }
+      if (trialEnd < now) {
+        // Revert to free plan
+        const revertToFree = async () => {
+          const userRef = doc(db, "Users", auth.currentUser.uid);
+          await updateDoc(userRef, {
+            subscriptionPlan: "free",
+            trialEndDate: null,
+            trialStartDate: null,
+            lastUpdated: new Date(),
+          });
+          setUserDetails((prev) => ({
+            ...prev,
+            subscriptionPlan: "free",
+            trialEndDate: null,
+            trialStartDate: null,
+          }));
+          toast.info(
+            "Your trial period has ended. Upgrade to Gold for uninterrupted premium features!"
+          );
+        };
+        revertToFree();
+        updated = true;
+      }
+    }
+
+    // Gold plan expiration and advance notification
+    if (
+      userDetails.subscriptionPlan === "gold" &&
+      userDetails.subscriptionEndDate
+    ) {
+      const goldEnd = getDateObj(userDetails.subscriptionEndDate);
+      const daysLeft = Math.ceil((goldEnd - now) / (1000 * 60 * 60 * 24));
+      if (daysLeft > 0 && daysLeft <= 2) {
+        toast.info(
+          `Your Gold plan ends on ${goldEnd.toLocaleDateString("en-IN")}. Please renew to avoid interruption.`,
+          { autoClose: 6000 }
+        );
+      }
+      if (goldEnd < now) {
+        // Revert to free plan
+        const revertToFree = async () => {
+          const userRef = doc(db, "Users", auth.currentUser.uid);
+          await updateDoc(userRef, {
+            subscriptionPlan: "free",
+            subscriptionEndDate: null,
+            subscriptionStartDate: null,
+            lastUpdated: new Date(),
+          });
+          setUserDetails((prev) => ({
+            ...prev,
+            subscriptionPlan: "free",
+            subscriptionEndDate: null,
+            subscriptionStartDate: null,
+          }));
+          toast.info(
+            "Your Gold subscription has ended. Please renew to regain premium features."
+          );
+        };
+        revertToFree();
+        updated = true;
+      }
+    }
+
+    // If plan is not recognized, revert to free
+    if (
+      userDetails.subscriptionPlan &&
+      !["free", "trial", "gold"].includes(userDetails.subscriptionPlan)
+    ) {
+      setUserDetails((prev) => ({ ...prev, subscriptionPlan: "free" }));
+      updated = true;
+    }
+
+    // Optionally, you can force a reload if updated
+  }, [userDetails]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
       <div className="w-full pt-[140px] md:pt-[160px] pb-12 px-4">
@@ -1890,6 +1987,15 @@ const Account = () => {
                               Make Prediction
                             </button>
                           </>
+                        )}
+                        {userDetails?.subscriptionPlan === "free" && (
+                          <div className="flex items-center gap-2 mb-4">
+                            <span
+                              className={`inline-block px-4 py-2 rounded-full font-semibold text-sm shadow-md ${todayPredictionCount < 15 ? "bg-green-100 text-green-800" : todayPredictionCount < 20 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}`}
+                            >
+                              {20 - todayPredictionCount} predictions left today
+                            </span>
+                          </div>
                         )}
                         <button
                           onClick={() => setShowDeleteConfirm(true)}
