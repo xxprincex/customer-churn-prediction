@@ -1619,7 +1619,12 @@ const Account = () => {
         const data = doc.data();
         if (data.timestamp && data.timestamp.toDate) {
           const predDate = data.timestamp.toDate();
-          if (predDate >= today) count++;
+          // Only count predictions made after today's midnight
+          if (
+            predDate >= today &&
+            predDate < new Date(today.getTime() + 24 * 60 * 60 * 1000)
+          )
+            count++;
         }
       });
       setTodayPredictionCount(count);
@@ -1627,7 +1632,7 @@ const Account = () => {
     if (userDetails?.subscriptionPlan === "free") {
       fetchTodayPredictionCount();
     }
-  }, [userDetails?.subscriptionPlan]);
+  }, [userDetails?.subscriptionPlan, predictions]);
 
   // Add this useEffect to handle plan expiration and advance notifications
   useEffect(() => {
@@ -1989,12 +1994,44 @@ const Account = () => {
                           </>
                         )}
                         {userDetails?.subscriptionPlan === "free" && (
-                          <div className="flex items-center gap-2 mb-4">
-                            <span
-                              className={`inline-block px-4 py-2 rounded-full font-semibold text-sm shadow-md ${todayPredictionCount < 15 ? "bg-green-100 text-green-800" : todayPredictionCount < 20 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800"}`}
+                          <div className="flex items-center gap-2 mb-4 w-full max-w-xs">
+                            <div className="flex-1">
+                              <div className="relative h-4 bg-gray-200 rounded-full overflow-hidden">
+                                <div
+                                  className={`absolute left-0 top-0 h-4 rounded-full transition-all duration-500 ${
+                                    todayPredictionCount < 15
+                                      ? "bg-green-400"
+                                      : todayPredictionCount < 20
+                                        ? "bg-yellow-400"
+                                        : "bg-red-500"
+                                  }`}
+                                  style={{
+                                    width: `${((20 - todayPredictionCount) / 20) * 100}%`,
+                                  }}
+                                ></div>
+                              </div>
+                              <div className="flex justify-between text-xs mt-1 px-1">
+                                <span className="font-semibold text-gray-700">
+                                  {20 - todayPredictionCount} left today
+                                </span>
+                                <span className="text-gray-400">
+                                  {todayPredictionCount}/20 used
+                                </span>
+                              </div>
+                            </div>
+                            <svg
+                              className="w-6 h-6 text-gray-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
                             >
-                              {20 - todayPredictionCount} predictions left today
-                            </span>
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z"
+                              />
+                            </svg>
                           </div>
                         )}
                         <button
