@@ -463,41 +463,6 @@ const Prediction = () => {
 
         setDailyPredictions(newCount);
         setLastPredictionDate(today);
-
-        // Save the prediction to Firebase
-        const predictionsRef = collection(db, "Users", user.uid, "predictions");
-        await addDoc(predictionsRef, {
-          timestamp: serverTimestamp(),
-          formData: submissionData,
-          prediction: formattedPredictionResult.prediction,
-          churn_probability: formattedPredictionResult.churn_probability,
-          stay_probability: formattedPredictionResult.stay_probability,
-          prediction_label: formattedPredictionResult.prediction_label,
-          risk_factors: formattedPredictionResult.risk_factors,
-          confidence_score: formattedPredictionResult.confidence_score,
-          customerID: submissionData.CustomerID,
-          date: new Date().toISOString(),
-        });
-
-        // Show auto-save toast for free users
-        toast.success("Prediction auto-saved to history!", {
-          position: "top-right",
-          autoClose: 3000,
-          hideProgressBar: false,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: true,
-        });
-
-        if (newCount >= 15) {
-          toast.info(
-            `You have ${20 - newCount} predictions remaining today. Consider upgrading to Premium for unlimited predictions!`,
-            {
-              position: "top-center",
-              autoClose: 3000,
-            }
-          );
-        }
       }
 
       // Show appropriate toast message based on adjusted prediction
