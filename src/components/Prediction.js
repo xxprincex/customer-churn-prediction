@@ -463,6 +463,18 @@ const Prediction = () => {
 
         setDailyPredictions(newCount);
         setLastPredictionDate(today);
+
+        // Show a toast when only 5, 4, 3, 2, or 1 predictions are left
+        const remaining = 20 - newCount;
+        if ([5, 4, 3, 2, 1].includes(remaining)) {
+          toast.warn(
+            `You have only ${remaining} prediction${remaining === 1 ? "" : "s"} left today. Upgrade to Premium for unlimited predictions!`,
+            {
+              position: "top-center",
+              autoClose: 4000,
+            }
+          );
+        }
       }
 
       // Show appropriate toast message based on adjusted prediction
