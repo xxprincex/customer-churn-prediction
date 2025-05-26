@@ -19,6 +19,7 @@ import {
 } from "firebase/auth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
+import { Info } from "lucide-react";
 
 // Update the gold shine styles
 const goldShineStyles = `
@@ -369,6 +370,91 @@ const spiralPremiumStyles = `
 `;
 
 const PREDICTION_LIMIT_FREE = 20;
+
+// Add the ModernUsageMeter component
+const ModernUsageMeter = ({
+  userDetails,
+  todayPredictionCount,
+  maxPredictions = 20,
+}) => {
+  const remainingPredictions = maxPredictions - todayPredictionCount;
+  const usagePercentage = (todayPredictionCount / maxPredictions) * 100;
+
+  if (userDetails?.subscriptionPlan !== "free") return null;
+
+  return (
+    <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200 mb-6">
+      {/* Info Icon */}
+      <div className="flex-shrink-0 mt-0.5">
+        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+          <Info className="w-4 h-4 text-white" />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1">
+        {/* Header */}
+        <div className="mb-3">
+          <h3 className="text-blue-800 font-semibold text-base mb-1">
+            {remainingPredictions === 0
+              ? "Daily limit reached"
+              : remainingPredictions <= 3
+                ? "Almost at your daily limit"
+                : "Daily Usage Tracking"}
+          </h3>
+          <p className="text-blue-700 text-sm">
+            {remainingPredictions === 0
+              ? "Your daily prediction limit has been reached. Upgrade to Gold plan for unlimited predictions."
+              : remainingPredictions <= 3
+                ? "You're close to reaching your daily limit. Consider upgrading for unlimited access."
+                : "You're using the free plan with 20 predictions per day. Your limit resets at midnight."}
+          </p>
+        </div>
+
+        {/* Usage Stats */}
+        <div className="mb-3">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-sm font-medium text-blue-700">
+              Predictions Used Today
+            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-blue-800">
+                {todayPredictionCount}/{maxPredictions}
+              </span>
+              <div className="flex items-center gap-1 text-blue-700 bg-blue-100 px-2 py-1 rounded-md">
+                <div
+                  className={`w-2 h-2 rounded-full ${remainingPredictions > 0 ? "bg-green-500" : "bg-red-500"}`}
+                ></div>
+                <span className="text-xs font-medium">
+                  {remainingPredictions} left
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="relative h-2.5 bg-blue-200 rounded-full overflow-hidden">
+            <div
+              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ease-out ${
+                usagePercentage >= 90
+                  ? "bg-gradient-to-r from-red-500 to-red-600"
+                  : "bg-gradient-to-r from-blue-600 to-blue-700"
+              }`}
+              style={{ width: `${usagePercentage}%` }}
+            ></div>
+          </div>
+
+          {/* Usage Percentage */}
+          <div className="mt-1 text-right">
+            <span className="text-xs text-blue-600">
+              {Math.round(usagePercentage)}% used
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Account = () => {
   const [userDetails, setUserDetails] = useState(null);
@@ -1857,6 +1943,13 @@ const Account = () => {
                         </span>
                       </div>
                     </div>
+
+                    {/* Add the ModernUsageMeter component here */}
+                    <ModernUsageMeter
+                      userDetails={userDetails}
+                      todayPredictionCount={todayPredictionCount}
+                      maxPredictions={PREDICTION_LIMIT_FREE}
+                    />
 
                     <div className="flex flex-wrap gap-4">
                       <button
