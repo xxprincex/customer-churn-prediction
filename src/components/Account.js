@@ -383,74 +383,58 @@ const ModernUsageMeter = ({
   if (userDetails?.subscriptionPlan !== "free") return null;
 
   return (
-    <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200 mb-6">
+    <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200 mb-4">
       {/* Info Icon */}
-      <div className="flex-shrink-0 mt-0.5">
-        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-          <Info className="w-4 h-4 text-white" />
+      <div className="flex-shrink-0">
+        <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
+          <Info className="w-3 h-3 text-white" />
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1">
-        {/* Header */}
-        <div className="mb-3">
-          <h3 className="text-blue-800 font-semibold text-base mb-1">
+      <div className="flex-1 min-w-0">
+        {/* Header and Stats in one line */}
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-blue-800 font-medium text-sm truncate">
             {remainingPredictions === 0
               ? "Daily limit reached"
               : remainingPredictions <= 3
-                ? "Almost at your daily limit"
-                : "Daily Usage Tracking"}
+                ? "Almost at limit"
+                : "Daily Usage"}
           </h3>
-          <p className="text-blue-700 text-sm">
-            {remainingPredictions === 0
-              ? "Your daily prediction limit has been reached. Upgrade to Gold plan for unlimited predictions."
-              : remainingPredictions <= 3
-                ? "You're close to reaching your daily limit. Consider upgrading for unlimited access."
-                : "You're using the free plan with 20 predictions per day. Your limit resets at midnight."}
-          </p>
-        </div>
-
-        {/* Usage Stats */}
-        <div className="mb-3">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-medium text-blue-700">
-              Predictions Used Today
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-xs font-semibold text-blue-800">
+              {todayPredictionCount}/{maxPredictions}
             </span>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-semibold text-blue-800">
-                {todayPredictionCount}/{maxPredictions}
-              </span>
-              <div className="flex items-center gap-1 text-blue-700 bg-blue-100 px-2 py-1 rounded-md">
-                <div
-                  className={`w-2 h-2 rounded-full ${remainingPredictions > 0 ? "bg-green-500" : "bg-red-500"}`}
-                ></div>
-                <span className="text-xs font-medium">
-                  {remainingPredictions} left
-                </span>
-              </div>
+            <div className="flex items-center gap-1 text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded text-xs">
+              <div
+                className={`w-1.5 h-1.5 rounded-full ${remainingPredictions > 0 ? "bg-green-500" : "bg-red-500"}`}
+              ></div>
+              <span className="font-medium">{remainingPredictions} left</span>
             </div>
           </div>
-
-          {/* Progress Bar */}
-          <div className="relative h-2.5 bg-blue-200 rounded-full overflow-hidden">
-            <div
-              className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ease-out ${
-                usagePercentage >= 90
-                  ? "bg-gradient-to-r from-red-500 to-red-600"
-                  : "bg-gradient-to-r from-blue-600 to-blue-700"
-              }`}
-              style={{ width: `${usagePercentage}%` }}
-            ></div>
-          </div>
-
-          {/* Usage Percentage */}
-          <div className="mt-1 text-right">
-            <span className="text-xs text-blue-600">
-              {Math.round(usagePercentage)}% used
-            </span>
-          </div>
         </div>
+
+        {/* Progress Bar */}
+        <div className="relative h-1.5 bg-blue-200 rounded-full overflow-hidden mb-1">
+          <div
+            className={`absolute left-0 top-0 h-full rounded-full transition-all duration-500 ease-out ${
+              usagePercentage >= 90
+                ? "bg-gradient-to-r from-red-500 to-red-600"
+                : "bg-gradient-to-r from-blue-600 to-blue-700"
+            }`}
+            style={{ width: `${usagePercentage}%` }}
+          ></div>
+        </div>
+
+        {/* Compact description */}
+        <p className="text-blue-700 text-xs leading-tight">
+          {remainingPredictions === 0
+            ? "Upgrade to Gold for unlimited predictions"
+            : remainingPredictions <= 3
+              ? "Consider upgrading for unlimited access"
+              : "Free plan • Resets at midnight"}
+        </p>
       </div>
     </div>
   );
