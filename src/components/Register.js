@@ -17,7 +17,7 @@ import {
 import { auth, db } from "../firebase";
 import { setDoc, doc } from "firebase/firestore";
 import { toast } from "react-toastify";
-import { checkValidation } from "../utils/Validate";
+// Removed import of deleted Validate.js file
 
 const pageVariants = {
   initial: {
@@ -59,9 +59,26 @@ const Register = () => {
   const email1 = useRef(null);
   const password1 = useRef(null);
 
+  // Inline validation function
+  const validateForm = (firstname, lastname, email, password) => {
+    if (!firstname || firstname.trim().length < 2) {
+      return "First name must be at least 2 characters long";
+    }
+    if (!lastname || lastname.trim().length < 2) {
+      return "Last name must be at least 2 characters long";
+    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return "Please enter a valid email address";
+    }
+    if (!password || password.length < 6) {
+      return "Password must be at least 6 characters long";
+    }
+    return null;
+  };
+
   useEffect(() => {
     if (firstname && lastname && email && password) {
-      const message = checkValidation(firstname, lastname, email, password);
+      const message = validateForm(firstname, lastname, email, password);
       setErrorMessage(message);
       setValid(message === null);
     } else {
@@ -72,7 +89,7 @@ const Register = () => {
   const handleRegister = async (event) => {
     event.preventDefault();
 
-    const message = checkValidation(firstname, lastname, email, password);
+    const message = validateForm(firstname, lastname, email, password);
     if (message !== null) {
       setErrorMessage(message);
       return;

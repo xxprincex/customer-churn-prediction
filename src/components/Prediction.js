@@ -31,17 +31,19 @@ const generateCustomerId = async () => {
       throw new Error("You must be logged in to generate a customer ID");
     }
 
-    // Get the last prediction to find the highest ID
+    // Get all predictions to find the highest ID
     const predictionsRef = collection(db, "Users", user.uid, "predictions");
-    const q = query(predictionsRef, orderBy("timestamp", "desc"), limit(10));
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await getDocs(predictionsRef);
 
     let highestId = 0;
+    let existingIds = new Set();
+
     querySnapshot.forEach((doc) => {
       const data = doc.data();
       if (data.formData && data.formData.CustomerID) {
-        // Extract numeric part if CustomerID starts with 'C'
         const customerId = data.formData.CustomerID;
+        existingIds.add(customerId);
+
         if (customerId.startsWith("C")) {
           const numericPart = parseInt(customerId.substring(1));
           if (!isNaN(numericPart) && numericPart > highestId) {
@@ -51,12 +53,19 @@ const generateCustomerId = async () => {
       }
     });
 
-    // Generate next ID
-    return `C${(highestId + 1).toString().padStart(5, "0")}`;
+    // Generate next ID with proper padding
+    let nextId;
+    do {
+      highestId++;
+      nextId = `C${highestId.toString().padStart(5, "0")}`;
+    } while (existingIds.has(nextId));
+
+    return nextId;
   } catch (error) {
     console.error("Error generating customer ID:", error);
-    // Fallback to timestamp-based ID if database query fails
-    return `C${Date.now().toString().slice(-5)}`;
+    // Generate a timestamp-based fallback ID with proper format
+    const timestamp = Date.now();
+    return `C${timestamp.toString().slice(-5).padStart(5, "0")}`;
   }
 };
 
@@ -241,7 +250,17 @@ const Prediction = () => {
       }
     }
 
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear the CustomerID when any other field changes (except CustomerID field itself)
+    if (name !== "CustomerID") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+        CustomerID: "", // Clear CustomerID when other fields change
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+
     // Clear error when user starts typing
     if (formErrors[name]) {
       setFormErrors((prev) => ({ ...prev, [name]: null }));
@@ -281,22 +300,17 @@ const Prediction = () => {
       // Step 1: Process and validate form data
       let submissionData = { ...formData };
 
-      // Only generate a new customer ID if none is provided
-      if (
-        !submissionData.CustomerID ||
-        submissionData.CustomerID.trim() === ""
-      ) {
-        try {
-          submissionData.CustomerID = await generateCustomerId();
-          setFormData((prev) => ({
-            ...prev,
-            CustomerID: submissionData.CustomerID,
-          }));
-        } catch (idError) {
-          console.error("Error generating customer ID:", idError);
-          toast.error("Error generating customer ID. Using fallback ID.");
-          submissionData.CustomerID = `C${Date.now().toString().slice(-5)}`;
-        }
+      // Always generate a new customer ID for each prediction
+      try {
+        submissionData.CustomerID = await generateCustomerId();
+        setFormData((prev) => ({
+          ...prev,
+          CustomerID: submissionData.CustomerID,
+        }));
+      } catch (idError) {
+        console.error("Error generating customer ID:", idError);
+        toast.error("Error generating customer ID. Using fallback ID.");
+        submissionData.CustomerID = `C${Date.now().toString().slice(-5)}`;
       }
 
       // Store the form data used for this prediction

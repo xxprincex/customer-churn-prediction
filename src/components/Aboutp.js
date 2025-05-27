@@ -1,6 +1,4 @@
-import { PIC1 } from "../utils/constants";
-import { PIC2 } from "../utils/constants";
-import { PIC3 } from "../utils/constants";
+import { PIC1, PIC2, PIC3 } from "../utils/constants";
 import { FaChartLine, FaUsers, FaRobot, FaCheckCircle } from "react-icons/fa";
 
 const Aboutp = () => {
