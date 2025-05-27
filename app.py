@@ -774,6 +774,32 @@ def predict_batch():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/create-checkout-session', methods=['POST'])
+def create_checkout_session():
+    data = request.json
+    firebase_uid = data.get('firebase_uid')
+    email = data.get('email')
+    if not firebase_uid or not email:
+        return jsonify({'error': 'Missing user info'}), 400
+
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price': os.getenv('STRIPE_GOLD_PLAN_PRICE_ID'),  # Set this in your Render env
+                'quantity': 1,
+            }],
+            mode='subscription',
+            customer_email=email,
+            metadata={'firebase_uid': firebase_uid},
+            success_url=f"{request.host_url}account?success=true&session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{request.host_url}account?canceled=true",
+        )
+        return jsonify({'url': session.url})
+    except Exception as e:
+        print(f"Error creating checkout session: {e}")
+        return jsonify({'error': str(e)}), 500
+
 # Serve React app - this should be at the end of all API routes
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
