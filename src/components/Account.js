@@ -706,6 +706,7 @@ const Account = () => {
       }
       setIsProcessing(true);
 
+      // Call backend to create Stripe Checkout Session
       const response = await fetch("/api/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
