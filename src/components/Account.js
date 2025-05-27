@@ -704,19 +704,24 @@ const Account = () => {
         navigate("/login");
         return;
       }
-
       setIsProcessing(true);
 
-      // Add success_url parameter, customer email, and client_reference_id to redirect URL
-      const successUrl = `${window.location.origin}/account?success=true`;
-      const paymentLink = "https://buy.stripe.com/test_14k14BbYP3iQfPa4gg";
-      const finalPaymentLink = `${paymentLink}?success_url=${encodeURIComponent(successUrl)}&prefilled_email=${encodeURIComponent(currentUser.email)}&client_reference_id=${encodeURIComponent(currentUser.uid)}`;
-
-      console.log("Payment link with user ID:", finalPaymentLink);
-      console.log("User ID being passed:", currentUser.uid);
-
-      // Redirect to Stripe payment link
-      window.location.href = finalPaymentLink;
+      const response = await fetch("/api/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firebase_uid: currentUser.uid,
+          email: currentUser.email,
+          success_url: `${window.location.origin}/account`,
+          cancel_url: `${window.location.origin}/account`,
+        }),
+      });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error(data.error || "Could not start payment session.");
+      }
     } catch (error) {
       console.error("Error initiating upgrade:", error);
       toast.error("Could not process upgrade. Please try again.");
