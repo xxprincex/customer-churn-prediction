@@ -779,15 +779,16 @@ def create_checkout_session():
     data = request.json
     firebase_uid = data.get('firebase_uid')
     email = data.get('email')
-    if not firebase_uid or not email:
-        return jsonify({'error': 'Missing user information'}), 400
+    price_id = os.getenv('REACT_APP_STRIPE_GOLD_PLAN_PRICE')
+    if not firebase_uid or not email or not price_id:
+        return jsonify({'error': 'Missing user information or Stripe price ID'}), 400
 
     try:
         session = stripe.checkout.Session.create(
             payment_method_types=['card'],
             mode='subscription',
             line_items=[{
-                'price': os.getenv('REACT_APP_STRIPE_GOLD_PLAN_PRICE'),  # Stripe price ID for gold plan
+                'price': price_id,
                 'quantity': 1,
             }],
             customer_email=email,
