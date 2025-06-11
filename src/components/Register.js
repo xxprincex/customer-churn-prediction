@@ -61,11 +61,17 @@ const Register = () => {
 
   // Inline validation function
   const validateForm = (firstname, lastname, email, password) => {
-    if (!firstname || firstname.trim().length < 2) {
-      return "First name must be at least 2 characters long";
+    const nameRegex = /^[a-zA-Z\s-'.]+$/;
+
+    if (
+      !firstname ||
+      !nameRegex.test(firstname) ||
+      firstname.trim().length < 2
+    ) {
+      return "First name is not valid (min 2 characters, no numbers/special characters)";
     }
-    if (!lastname || lastname.trim().length < 2) {
-      return "Last name must be at least 2 characters long";
+    if (!lastname || !nameRegex.test(lastname) || lastname.trim().length < 2) {
+      return "Last name is not valid (min 2 characters, no numbers/special characters)";
     }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return "Please enter a valid email address";
