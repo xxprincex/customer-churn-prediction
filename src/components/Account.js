@@ -706,17 +706,30 @@ const Account = () => {
       }
       setIsProcessing(true);
 
-      // Call backend to create Stripe Checkout Session
-      const response = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firebase_uid: currentUser.uid,
-          email: currentUser.email,
-          success_url: `${window.location.origin}/account`,
-          cancel_url: `${window.location.origin}/account`,
-        }),
-      });
+      // Use environment variable for backend API URL
+      const API_BASE_URL = process.env.REACT_APP_API_URL; // Removed fallback
+      if (!API_BASE_URL) {
+        console.error("REACT_APP_API_URL is not set!");
+        toast.error(
+          "Backend API URL is not configured. Please contact support."
+        );
+        setIsProcessing(false);
+        return;
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/create-checkout-session`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            firebase_uid: currentUser.uid,
+            email: currentUser.email,
+            success_url: `${window.location.origin}/account`,
+            cancel_url: `${window.location.origin}/account`,
+          }),
+        }
+      );
       const data = await response.json();
       if (data.url) {
         window.location.href = data.url;
