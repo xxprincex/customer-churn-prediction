@@ -305,6 +305,10 @@ def webhook():
         print("Warning: Stripe webhook secret is not set!")
         return jsonify({'error': 'Stripe webhook secret is not configured'}), 500
 
+    if db is None:
+        print("Error: Firestore DB client not initialized.")
+        return jsonify({'error': 'Firestore DB client not initialized'}), 500
+
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature')
     print(f"Stripe-Signature header received: {bool(sig_header)}")
@@ -602,6 +606,7 @@ def webhook():
         print(f"Ignoring event type: {event['type']}")
 
     return jsonify({'status': 'success', 'message': 'Event received'}), 200
+
 def validate_and_clean_record(record, customer_id):
     """Validate and clean a single record"""
     try:
